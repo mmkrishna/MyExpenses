@@ -29,3 +29,6 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Xcode local workspace settings
+**/xcshareddata/WorkspaceSettings.xcsettings
