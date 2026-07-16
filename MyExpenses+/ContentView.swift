@@ -1,55 +1,53 @@
-//
-//  ContentView.swift
-//  MyExpenses+
-//
-//  Created by Murali Krishna on 15/07/2026.
-//
-
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ContentView: View {
+    @AppStorage("appearancePreference") private var appearanceRawValue = AppearanceMode.system.rawValue
+    @AppStorage("faceIDEnabled") private var faceIDEnabled = false
+    @State private var isUnlocked = true
+    @State private var didGenerateRecurringExpenses = false
+    @State private var showingSplash = true
+
+    @Query private var expenses: [Expense]
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+
+    private var preferredColorScheme: ColorScheme? {
+        AppearanceMode(rawValue: appearanceRawValue)?.colorScheme
+    }
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        ZStack {
+            RootTabView()
+                .opacity(isUnlocked ? 1 : 0)
+
+            if !isUnlocked {
+                LockedView(biometryName: BiometricAuthService.biometryTypeName, onUnlock: authenticate)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
+
+            if showingSplash {
+                SplashScreenView {
+                    showingSplash = false
                 }
             }
-        } detail: {
-            Text("Select an item")
+        }
+        .preferredColorScheme(preferredColorScheme)
+        .onAppear {
+            if faceIDEnabled {
+                isUnlocked = false
+                authenticate()
+            }
+            if !didGenerateRecurringExpenses {
+                didGenerateRecurringExpenses = true
+                RecurrenceGenerationService.generateDueOccurrences(from: expenses, context: modelContext)
+            }
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+    private func authenticate() {
+        Task {
+            let success = await BiometricAuthService.authenticate(reason: "Unlock your expenses")
+            await MainActor.run {
+                isUnlocked = success
             }
         }
     }
@@ -57,5 +55,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(SampleData.previewContainer)
+        .environment(UserProfileViewModel())
 }

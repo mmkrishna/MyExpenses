@@ -1,0 +1,185 @@
+// ReportsView.swift
+// Expense Tracker
+//
+// Created by Murali Krishna on 15/07/2026.
+
+import Charts
+import SwiftData
+import SwiftUI
+
+struct ReportsView: View {
+    @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
+    @State private var viewModel = ReportsViewModel()
+
+    private var monthlySeries: [MonthlyTotal] {
+        viewModel.monthlySeries(expenses)
+    }
+
+    private var categoryTotals: [CategorySpending] {
+        viewModel.categoryTotals(expenses)
+    }
+
+    private var dailyTrend: [DailyTotal] {
+        viewModel.dailyTrend(expenses)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if expenses.isEmpty {
+                    VStack {
+                        Spacer()
+                        EmptyState(message: "Add some expenses to see your reports.", systemImage: "chart.pie")
+                        Spacer()
+                    }
+                } else {
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            summaryRow
+
+                            monthlyChartCard
+                            categoryChartCard
+                            dailyTrendCard
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Reports")
+            .navigationBarTitleDisplayMode(.large)
+        }
+    }
+
+    private var summaryRow: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 14) {
+                StatisticCard(
+                    title: "Total Spent",
+                    value: CurrencyFormatter.string(from: viewModel.totalExpenses(expenses)),
+                    systemImage: "sum",
+                    tint: .blue
+                )
+                StatisticCard(
+                    title: "Monthly Avg",
+                    value: CurrencyFormatter.string(from: viewModel.monthlyAverage(expenses)),
+                    systemImage: "chart.bar.fill",
+                    tint: .purple
+                )
+            }
+            if let highest = viewModel.highestCategory(expenses) {
+                StatisticCard(
+                    title: "Top Category This Month",
+                    value: "\(highest.category.displayName) · \(CurrencyFormatter.string(from: highest.total))",
+                    systemImage: highest.category.systemImage,
+                    tint: highest.category.color
+                )
+            }
+        }
+    }
+
+    private var monthlyChartCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Monthly Spending")
+                .font(.headline)
+
+            Chart(monthlySeries) { entry in
+                BarMark(
+                    x: .value("Month", entry.month, unit: .month),
+                    y: .value("Total", NSDecimalNumber(decimal: entry.total).doubleValue)
+                )
+                .foregroundStyle(Color.accentColor.gradient)
+                .cornerRadius(6)
+            }
+            .frame(height: 180)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { value in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated))
+                }
+            }
+            .accessibilityLabel("Monthly spending chart for the last six months")
+        }
+        .cardStyle()
+    }
+
+    private var categoryChartCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Spending by Category")
+                .font(.headline)
+
+            if categoryTotals.isEmpty {
+                Text("No expenses this month yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 24)
+            } else {
+                Chart(categoryTotals) { entry in
+                    SectorMark(
+                        angle: .value("Total", NSDecimalNumber(decimal: entry.total).doubleValue),
+                        innerRadius: .ratio(0.6),
+                        angularInset: 1.5
+                    )
+                    .cornerRadius(4)
+                    .foregroundStyle(entry.category.color)
+                }
+                .frame(height: 200)
+                .accessibilityLabel("Category breakdown pie chart for the current month")
+
+                VStack(spacing: 8) {
+                    ForEach(categoryTotals.prefix(6)) { entry in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(entry.category.color)
+                                .frame(width: 8, height: 8)
+                            Text(entry.category.displayName)
+                                .font(.caption)
+                            Spacer()
+                            Text(CurrencyFormatter.string(from: entry.total))
+                                .font(.caption.weight(.medium))
+                                .monospacedDigit()
+                        }
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
+        .cardStyle()
+    }
+
+    private var dailyTrendCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Daily Spending Trend")
+                .font(.headline)
+
+            Chart(dailyTrend) { entry in
+                LineMark(
+                    x: .value("Day", entry.day, unit: .day),
+                    y: .value("Total", NSDecimalNumber(decimal: entry.total).doubleValue)
+                )
+                .foregroundStyle(Color.accentColor)
+                .interpolationMethod(.catmullRom)
+
+                AreaMark(
+                    x: .value("Day", entry.day, unit: .day),
+                    y: .value("Total", NSDecimalNumber(decimal: entry.total).doubleValue)
+                )
+                .foregroundStyle(Color.accentColor.opacity(0.12))
+                .interpolationMethod(.catmullRom)
+            }
+            .frame(height: 180)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { value in
+                    AxisValueLabel(format: .dateTime.day())
+                }
+            }
+            .accessibilityLabel("Daily spending trend for the current month")
+        }
+        .cardStyle()
+    }
+}
+
+#Preview {
+    ReportsView()
+        .modelContainer(SampleData.previewContainer)
+}
