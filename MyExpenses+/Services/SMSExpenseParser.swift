@@ -81,6 +81,8 @@ enum SMSExpenseParser {
         (.fuel, ["ADNOC", "ENOC", "EPPCO", "PETROL", "FUEL"]),
         (.transport, ["CAREEM", "UBER", "RTA", "METRO", "TAXI", "SALIK", "PARKING"]),
         (.health, ["PHARMACY", "ASTER", "MEDCARE", "CLINIC", "HOSPITAL", "MEDICAL"]),
+        // "TAKAFUL" is the common Islamic-insurance term locally.
+        (.insurance, ["INSURANCE", "TAKAFUL", "ASSURANCE"]),
         (.subscription, ["NETFLIX", "SPOTIFY", "OSN", "ANGHAMI", "SUBSCRIPTION", "APPLE.COM", "GOOGLE", "YOUTUBE"]),
         (.travel, ["EMIRATES", "FLYDUBAI", "AIR ARABIA", "BOOKING", "AGODA", "HOTEL", "AIRLINE", "AIRWAYS"]),
         (.bills, ["DEWA", "SEWA", "ETISALAT", "UTILITY"]),

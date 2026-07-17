@@ -82,7 +82,7 @@ enum SampleData {
         let insuranceSeries = UUID()
         let insurance = Expense(
             amount: 2400.00,
-            category: .bills,
+            category: .insurance,
             date: monthsAgo(4),
             notes: "Car insurance",
             paymentMethod: PaymentMethod.creditCard.rawValue,
