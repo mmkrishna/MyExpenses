@@ -23,13 +23,14 @@ struct SplashScreenView: View {
         ZStack {
             // Must match LaunchScreen.storyboard exactly, or the handoff from the
             // static launch screen to this animated one is a visible jump.
-            Color(.systemIndigo)
+            // Same displayP3 values as the storyboard's background colour.
+            Color(.displayP3, red: 0.228, green: 0.140, blue: 0.717)
                 .ignoresSafeArea()
 
             // ExpenseCategory icons bursting away from the center
             ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
                 let angle = Double(index) / Double(categories.count) * 2 * .pi - .pi / 2
-                let radius: CGFloat = iconsFlyOut ? 700 : 92
+                let radius: CGFloat = iconsFlyOut ? 700 : 128
 
                 Image(systemName: category.systemImage)
                     .font(.system(size: 30, weight: .semibold))
@@ -50,10 +51,10 @@ struct SplashScreenView: View {
             }
 
             // Same artwork and size as the launch screen's image view.
-            Image("My Icons")
+            Image("ScreenIcon")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 120, height: 120)
+                .frame(width: 182, height: 182)
                 .scaleEffect(logoScale)
         }
         .opacity(overlayOpacity)
