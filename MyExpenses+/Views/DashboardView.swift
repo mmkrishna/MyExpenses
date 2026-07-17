@@ -56,21 +56,17 @@ struct DashboardView: View {
                         )
                     }
 
+                    PrimaryButton(title: "Quick Add", systemImage: "plus", fullWidth: true) {
+                        viewModel.showingAddExpense = true
+                    }
+
                     if !categoryBreakdown.isEmpty {
                         categoryBreakdownSection
                     }
 
                     VStack(alignment: .leading, spacing: 14) {
-                        HStack(spacing: 8) {
-                            Text("Recent Expenses")
-                                .font(.headline)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                            Spacer(minLength: 0)
-                            PrimaryButton(title: "Quick Add", systemImage: "plus") {
-                                viewModel.showingAddExpense = true
-                            }
-                        }
+                        Text("Recent Expenses")
+                            .font(.headline)
 
                         if recentExpenses.isEmpty {
                             EmptyState(message: "No recent expenses.", systemImage: "tray")

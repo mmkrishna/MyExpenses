@@ -8,6 +8,8 @@ import SwiftUI
 struct PrimaryButton: View {
     let title: String
     let systemImage: String?
+    /// Stretches the button to fill its container, for use as a standalone call to action.
+    var fullWidth: Bool = false
     let action: () -> Void
 
     var body: some View {
@@ -25,19 +27,24 @@ struct PrimaryButton: View {
                     .lineLimit(1)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, fullWidth ? 14 : 10)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
             .background(Capsule().fill(Color.accentColor))
             .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
-        // Keep this compact pill a sensible size: it still scales with Dynamic Type,
-        // but is capped so it can't wrap or dominate the row at accessibility sizes.
+        // Still scales with Dynamic Type, but capped so a compact control can't
+        // wrap or dominate its row at accessibility sizes.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
-        .fixedSize(horizontal: true, vertical: false)
+        .fixedSize(horizontal: !fullWidth, vertical: false)
         .accessibilityLabel(title)
     }
 }
 
 #Preview {
-    PrimaryButton(title: "Button", systemImage: "plus") {}
+    VStack(spacing: 16) {
+        PrimaryButton(title: "Button", systemImage: "plus") {}
+        PrimaryButton(title: "Quick Add", systemImage: "plus", fullWidth: true) {}
+    }
+    .padding()
 }
