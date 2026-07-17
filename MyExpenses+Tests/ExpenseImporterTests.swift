@@ -69,5 +69,26 @@ struct ExpenseImporterTests {
         let backdated = try #require(stored.first { $0.merchant == "Shell" })
         #expect(calendar.isDate(backdated.date, inSameDayAs: lastMonth))
         #expect(!calendar.isDateInToday(backdated.date))
+
+        // One paste can span several days: each transaction keeps its own date,
+        // so catching up on a week of messages doesn't collapse them onto one day.
+        var mixed = SMSExpenseParser.parse(
+            """
+            Purchase of AED 11.00 with Debit Card ending 0807 at ADNOC, DUBAI. Avl Balance is AED 900.00. \
+            Purchase of AED 12.00 with Debit Card ending 0807 at Carrefour, DUBAI. Avl Balance is AED 800.00.
+            """,
+            date: lastMonth
+        )
+        #expect(mixed.allSatisfy { calendar.isDate($0.date, inSameDayAs: lastMonth) })
+
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: Date())!
+        mixed[1].date = yesterday
+        ExpenseImporter.importExpenses(mixed, into: context)
+
+        stored = try context.fetch(FetchDescriptor<Expense>())
+        let adnoc = try #require(stored.first { $0.merchant == "ADNOC" })
+        let carrefour = try #require(stored.first { $0.merchant == "Carrefour" })
+        #expect(calendar.isDate(adnoc.date, inSameDayAs: lastMonth))
+        #expect(calendar.isDate(carrefour.date, inSameDayAs: yesterday))
     }
 }

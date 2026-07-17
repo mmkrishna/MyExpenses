@@ -9,6 +9,9 @@ struct ParsedSMSTransaction: Identifiable {
     /// The guessed category's name. Resolved to a `ExpenseCategory` where a context is
     /// available, so the parser itself stays free of SwiftData.
     var categoryName: String
+    /// When the purchase happened. Bank messages carry no timestamp, so the
+    /// caller stamps a default and the user can adjust each message.
+    var date: Date
     var paymentMethod: PaymentMethod
     var cardLast4: String?
     var rawText: String
@@ -26,7 +29,9 @@ enum SMSExpenseParser {
 
     private static let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
 
-    static func parse(_ text: String) -> [ParsedSMSTransaction] {
+    /// - Parameter date: stamped on every transaction found, since the messages
+    ///   themselves carry no date.
+    static func parse(_ text: String, date: Date = Date()) -> [ParsedSMSTransaction] {
         guard let regex else { return [] }
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
 
@@ -45,6 +50,7 @@ enum SMSExpenseParser {
                 currency: currency.uppercased(),
                 merchant: merchant,
                 categoryName: guessCategory(for: merchant).rawValue,
+                date: date,
                 paymentMethod: cardType.lowercased() == "credit" ? .creditCard : .debitCard,
                 cardLast4: capture(match, 4, in: text),
                 rawText: fullMatch(match, in: text)
