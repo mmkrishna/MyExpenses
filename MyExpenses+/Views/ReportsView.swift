@@ -12,7 +12,11 @@ struct ReportsView: View {
     @State private var viewModel = ReportsViewModel()
 
     private var monthlySeries: [MonthlyTotal] {
-        viewModel.monthlySeries(expenses)
+        viewModel.series(for: viewModel.chartMode, expenses: expenses)
+    }
+
+    private var commitments: [RecurringCommitment] {
+        viewModel.commitments(expenses)
     }
 
     private var categoryTotals: [CategorySpending] {
@@ -36,6 +40,10 @@ struct ReportsView: View {
                     ScrollView {
                         VStack(spacing: 20) {
                             summaryRow
+
+                            if !commitments.isEmpty {
+                                commitmentsCard
+                            }
 
                             monthlyChartCard
                             categoryChartCard
@@ -78,10 +86,80 @@ struct ReportsView: View {
         }
     }
 
+    private var commitmentsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Monthly Commitments")
+                    .font(.headline)
+                Spacer(minLength: 8)
+                Text(CurrencyFormatter.string(from: RecurringCommitments.totalMonthly(commitments)))
+                    .font(.headline)
+                    .monospacedDigit()
+            }
+
+            VStack(spacing: 14) {
+                ForEach(commitments) { commitment in
+                    commitmentRow(commitment)
+                }
+            }
+
+            Text("What your recurring expenses work out to per month.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .cardStyle()
+    }
+
+    private func commitmentRow(_ commitment: RecurringCommitment) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: commitment.category.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(commitment.category.color)
+                .frame(width: 28, height: 28)
+                .background(commitment.category.color.opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(commitment.displayName)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                // Show the real charge too, so the monthly figure is explainable.
+                Text("\(commitment.frequency.rawValue) · \(CurrencyFormatter.string(from: commitment.chargedAmount, currencyCode: commitment.currency))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(CurrencyFormatter.string(from: commitment.monthlyEquivalent, currencyCode: commitment.currency))
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text("per month")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(commitment.displayName), \(commitment.frequency.rawValue) \(CurrencyFormatter.string(from: commitment.chargedAmount, currencyCode: commitment.currency)), "
+            + "\(CurrencyFormatter.string(from: commitment.monthlyEquivalent, currencyCode: commitment.currency)) per month"
+        )
+    }
+
     private var monthlyChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Monthly Spending")
                 .font(.headline)
+
+            Picker("Chart mode", selection: $viewModel.chartMode) {
+                ForEach(MonthlyChartMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
 
             Chart(monthlySeries) { entry in
                 BarMark(
@@ -98,8 +176,15 @@ struct ReportsView: View {
                 }
             }
             .accessibilityLabel("Monthly spending chart for the last six months")
+
+            Text(viewModel.chartMode == .actual
+                 ? "What you actually paid each month."
+                 : "Recurring charges spread evenly, so quarterly and yearly bills don't spike.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .cardStyle()
+        .animation(.easeInOut(duration: 0.25), value: viewModel.chartMode)
     }
 
     private var categoryChartCard: some View {

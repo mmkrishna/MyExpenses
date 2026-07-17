@@ -41,28 +41,56 @@ enum SampleData {
         ] + makeRecurringExpenses(calendar: calendar, now: now)
     }
 
-    /// A rent series (anchor + past occurrences) to demonstrate recurring expenses in previews.
+    /// Recurring series at each cadence — monthly rent, quarterly parking, yearly
+    /// insurance — so previews exercise the monthly-equivalent breakdown.
     private static func makeRecurringExpenses(calendar: Calendar, now: Date) -> [Expense] {
-        let seriesID = UUID()
-
         func monthsAgo(_ months: Int) -> Date {
             calendar.date(byAdding: .month, value: -months, to: now) ?? now
         }
 
-        let anchor = Expense(
+        // Rent: monthly, anchor plus one past occurrence.
+        let rentSeries = UUID()
+        let rentAnchor = Expense(
             amount: 4500.00,
-            category: .bills,
+            category: .rent,
             date: monthsAgo(2),
             notes: "Apartment rent",
-            paymentMethod: PaymentMethod.bankTransfer.rawValue,
+            paymentMethod: PaymentMethod.check.rawValue,
             merchant: "Landlord",
             recurrenceFrequency: .monthly,
-            seriesID: seriesID
+            seriesID: rentSeries
         )
-        let occurrence1 = Expense(
-            amount: 4500.00, category: .bills, date: monthsAgo(1), notes: "Apartment rent",
-            paymentMethod: PaymentMethod.bankTransfer.rawValue, merchant: "Landlord", seriesID: seriesID
+        let rentOccurrence = Expense(
+            amount: 4500.00, category: .rent, date: monthsAgo(1), notes: "Apartment rent",
+            paymentMethod: PaymentMethod.check.rawValue, merchant: "Landlord", seriesID: rentSeries
         )
-        return [anchor, occurrence1]
+
+        // Parking: quarterly -> 900 every 3 months is 300 a month.
+        let parkingSeries = UUID()
+        let parking = Expense(
+            amount: 900.00,
+            category: .parkingSubscription,
+            date: monthsAgo(2),
+            notes: "Quarterly parking permit",
+            paymentMethod: PaymentMethod.debitCard.rawValue,
+            merchant: "Parkin",
+            recurrenceFrequency: .quarterly,
+            seriesID: parkingSeries
+        )
+
+        // Insurance: yearly -> 2,400 once a year is 200 a month.
+        let insuranceSeries = UUID()
+        let insurance = Expense(
+            amount: 2400.00,
+            category: .bills,
+            date: monthsAgo(4),
+            notes: "Car insurance",
+            paymentMethod: PaymentMethod.creditCard.rawValue,
+            merchant: "Insurance Co",
+            recurrenceFrequency: .yearly,
+            seriesID: insuranceSeries
+        )
+
+        return [rentAnchor, rentOccurrence, parking, insurance]
     }
 }

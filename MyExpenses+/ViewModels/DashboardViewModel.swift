@@ -28,6 +28,14 @@ final class DashboardViewModel {
         Array(expenses.prefix(limit))
     }
 
+    func commitments(_ expenses: [Expense], now: Date = Date()) -> [RecurringCommitment] {
+        RecurringCommitments.active(in: expenses, on: now)
+    }
+
+    func totalMonthlyCommitment(_ expenses: [Expense], now: Date = Date()) -> Decimal {
+        RecurringCommitments.totalMonthly(commitments(expenses, now: now))
+    }
+
     func categoryBreakdown(_ expenses: [Expense], calendar: Calendar = .current) -> [CategorySpending] {
         let currentMonthExpenses = expenses.filter {
             calendar.isDate($0.date, equalTo: Date(), toGranularity: .month)

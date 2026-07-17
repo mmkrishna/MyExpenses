@@ -8,6 +8,19 @@ enum RecurrenceFrequency: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// What a single charge at this frequency works out to per month, so lumpy
+    /// payments (quarterly parking, yearly insurance) can be compared monthly.
+    /// Deliberately unrounded — callers format for display, and summing the exact
+    /// values avoids rounding drift across many commitments.
+    func monthlyEquivalent(of amount: Decimal) -> Decimal {
+        switch self {
+        case .weekly: amount * Decimal(52) / Decimal(12)
+        case .monthly: amount
+        case .quarterly: amount / Decimal(3)
+        case .yearly: amount / Decimal(12)
+        }
+    }
+
     func nextDate(after date: Date, calendar: Calendar = .current) -> Date {
         switch self {
         case .weekly:

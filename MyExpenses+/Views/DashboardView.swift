@@ -33,6 +33,10 @@ struct DashboardView: View {
         viewModel.categoryBreakdown(expenses)
     }
 
+    private var commitments: [RecurringCommitment] {
+        viewModel.commitments(expenses)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -58,6 +62,15 @@ struct DashboardView: View {
 
                     PrimaryButton(title: "Quick Add", systemImage: "plus", fullWidth: true) {
                         viewModel.showingAddExpense = true
+                    }
+
+                    if !commitments.isEmpty {
+                        StatisticCard(
+                            title: "Monthly Commitments",
+                            value: CurrencyFormatter.string(from: viewModel.totalMonthlyCommitment(expenses)),
+                            systemImage: "repeat",
+                            tint: .indigo
+                        )
                     }
 
                     if !categoryBreakdown.isEmpty {
