@@ -8,12 +8,56 @@ struct CategorySpending: Identifiable {
     var id: String { category.id }
 }
 
+/// The figures the hero card cycles through when tapped.
+enum DashboardMetric: String, CaseIterable, Identifiable {
+    case currentMonth = "Current Month"
+    case commitments = "Monthly Commitments"
+    case average = "Monthly Average"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .currentMonth: "calendar"
+        case .commitments: "repeat"
+        case .average: "chart.bar.fill"
+        }
+    }
+
+    var caption: String {
+        switch self {
+        case .currentMonth: "Spent so far this month"
+        case .commitments: "Recurring expenses, per month"
+        case .average: "Average across recorded months"
+        }
+    }
+}
+
 @Observable
 final class DashboardViewModel {
     var showingAddExpense = false
+    var metric: DashboardMetric = .currentMonth
 
-    func monthSpending(_ expenses: [Expense], calendar: Calendar = .current) -> Decimal {
-        ExpenseSummary.currentMonthTotal(for: expenses, calendar: calendar)
+    func advanceMetric() {
+        let all = DashboardMetric.allCases
+        guard let index = all.firstIndex(of: metric) else { return }
+        metric = all[(index + 1) % all.count]
+    }
+
+    func value(for metric: DashboardMetric, expenses: [Expense], calendar: Calendar = .current, now: Date = Date()) -> Decimal {
+        switch metric {
+        case .currentMonth: monthSpending(expenses, calendar: calendar, now: now)
+        case .commitments: totalMonthlyCommitment(expenses, now: now)
+        case .average: monthlyAverage(expenses, calendar: calendar)
+        }
+    }
+
+    func monthlyAverage(_ expenses: [Expense], calendar: Calendar = .current) -> Decimal {
+        ExpenseSummary.monthlyAverage(for: expenses, calendar: calendar)
+    }
+
+    func monthSpending(_ expenses: [Expense], calendar: Calendar = .current, now: Date = Date()) -> Decimal {
+        ExpenseSummary.currentMonthTotal(for: expenses, calendar: calendar, now: now)
     }
 
     func todaySpending(_ expenses: [Expense], calendar: Calendar = .current) -> Decimal {

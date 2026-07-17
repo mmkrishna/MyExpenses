@@ -117,11 +117,7 @@ final class ReportsViewModel {
     }
 
     func monthlyAverage(_ expenses: [Expense], calendar: Calendar = .current) -> Decimal {
-        guard !expenses.isEmpty else { return .zero }
-        let months = Set(expenses.map { calendar.dateInterval(of: .month, for: $0.date)?.start ?? $0.date })
-        guard !months.isEmpty else { return .zero }
-        let total = expenses.reduce(into: Decimal.zero) { $0 += $1.amount }
-        return total / Decimal(months.count)
+        ExpenseSummary.monthlyAverage(for: expenses, calendar: calendar)
     }
 
     func totalExpenses(_ expenses: [Expense]) -> Decimal {

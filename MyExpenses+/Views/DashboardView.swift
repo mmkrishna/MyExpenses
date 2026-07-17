@@ -33,10 +33,6 @@ struct DashboardView: View {
         viewModel.categoryBreakdown(expenses)
     }
 
-    private var commitments: [RecurringCommitment] {
-        viewModel.commitments(expenses)
-    }
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -62,15 +58,6 @@ struct DashboardView: View {
 
                     PrimaryButton(title: "Quick Add", systemImage: "plus", fullWidth: true) {
                         viewModel.showingAddExpense = true
-                    }
-
-                    if !commitments.isEmpty {
-                        StatisticCard(
-                            title: "Monthly Commitments",
-                            value: CurrencyFormatter.string(from: viewModel.totalMonthlyCommitment(expenses)),
-                            systemImage: "repeat",
-                            tint: .indigo
-                        )
                     }
 
                     if !categoryBreakdown.isEmpty {
@@ -134,19 +121,57 @@ struct DashboardView: View {
         }
     }
 
+    private var heroValue: Decimal {
+        viewModel.value(for: viewModel.metric, expenses: expenses)
+    }
+
+    /// Tapping cycles through the figures rather than giving each its own card.
     private var monthSpendingHero: some View {
+        Button {
+            Haptics.selection()
+            withAnimation(.spring(duration: 0.3)) {
+                viewModel.advanceMetric()
+            }
+        } label: {
+            heroContent
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(viewModel.metric.rawValue): \(CurrencyFormatter.string(from: heroValue)). \(viewModel.metric.caption)")
+        .accessibilityHint("Tap to show the next figure")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var heroContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label("Current Month", systemImage: "calendar")
+            HStack(spacing: 8) {
+                Label(viewModel.metric.rawValue, systemImage: viewModel.metric.systemImage)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white.opacity(0.85))
-                Spacer()
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                // Dots hint that there is more than one figure behind this card.
+                HStack(spacing: 5) {
+                    ForEach(DashboardMetric.allCases) { metric in
+                        Circle()
+                            .fill(.white.opacity(metric == viewModel.metric ? 0.95 : 0.35))
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                .accessibilityHidden(true)
             }
-            Text(CurrencyFormatter.string(from: monthSpending))
+
+            Text(CurrencyFormatter.string(from: heroValue))
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .contentTransition(.numericText())
-                .accessibilityLabel("Current month spending: \(CurrencyFormatter.string(from: monthSpending))")
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+            Text(viewModel.metric.caption)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.75))
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(22)
