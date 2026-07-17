@@ -10,8 +10,15 @@ struct ExpenseImportResult {
 /// Turns parsed SMS transactions into stored Expenses. Shared by the in-app
 /// Import from SMS screen and the "Add Expense from Text" App Intent.
 enum ExpenseImporter {
+    /// - Parameter date: Bank messages carry no timestamp, so the caller decides
+    ///   when the transactions happened. Defaults to now for callers that have no
+    ///   better information (e.g. the Shortcuts intent).
     @discardableResult
-    static func importExpenses(_ transactions: [ParsedSMSTransaction], into context: ModelContext) -> ExpenseImportResult {
+    static func importExpenses(
+        _ transactions: [ParsedSMSTransaction],
+        into context: ModelContext,
+        date: Date = Date()
+    ) -> ExpenseImportResult {
         var total = Decimal.zero
         for transaction in transactions {
             // The parser only guesses a name; resolve it to a real category here,
@@ -19,7 +26,7 @@ enum ExpenseImporter {
             let expense = Expense(
                 amount: transaction.amount,
                 category: CategoryStore.findOrCreate(named: transaction.categoryName, in: context),
-                date: Date(),
+                date: date,
                 notes: "",
                 paymentMethod: transaction.paymentMethod.rawValue,
                 merchant: transaction.merchant,
@@ -36,7 +43,11 @@ enum ExpenseImporter {
     }
 
     @discardableResult
-    static func importExpenses(from text: String, into context: ModelContext) -> ExpenseImportResult {
-        importExpenses(SMSExpenseParser.parse(text), into: context)
+    static func importExpenses(
+        from text: String,
+        into context: ModelContext,
+        date: Date = Date()
+    ) -> ExpenseImportResult {
+        importExpenses(SMSExpenseParser.parse(text), into: context, date: date)
     }
 }

@@ -9,6 +9,8 @@ struct ImportSMSView: View {
     private var categories: [ExpenseCategory]
     @State private var text: String
     @State private var transactions: [ParsedSMSTransaction] = []
+    /// Bank messages carry no date, so the user picks the one to file them under.
+    @State private var date = Date()
 
     init(prefilledText: String = "") {
         _text = State(initialValue: prefilledText)
@@ -38,7 +40,13 @@ struct ImportSMSView: View {
                 } header: {
                     Text("Paste your bank SMS")
                 } footer: {
-                    Text("Amounts, merchants, and cards are detected automatically. All imported expenses use today's date.")
+                    Text("Amounts, merchants, and cards are detected automatically.")
+                }
+
+                Section {
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                } footer: {
+                    Text("Bank messages don't include a date, so pick when these were spent. Applies to everything in this paste.")
                 }
 
                 if !transactions.isEmpty {
@@ -116,7 +124,7 @@ struct ImportSMSView: View {
     }
 
     private func addAll() {
-        ExpenseImporter.importExpenses(transactions, into: modelContext)
+        ExpenseImporter.importExpenses(transactions, into: modelContext, date: date)
         Haptics.success()
         dismiss()
     }

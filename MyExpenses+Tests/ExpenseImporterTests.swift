@@ -50,5 +50,24 @@ struct ExpenseImporterTests {
         stored = try context.fetch(FetchDescriptor<Expense>())
         #expect(stored.count == 3)
         #expect(stored.contains { $0.merchant == "SOCIAL HUB FZCO" && $0.categoryName == "Entertainment" })
+
+        // Everything so far had no date passed, so it defaults to today — which is
+        // what the Shortcuts intent relies on.
+        #expect(stored.allSatisfy { Calendar.current.isDateInToday($0.date) })
+
+        // Bank messages carry no date, so an old message must be filed under the
+        // date the user picks rather than today.
+        let calendar = Calendar.current
+        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date())!
+        ExpenseImporter.importExpenses(
+            from: "Purchase of AED 55.00 with Debit Card ending 0807 at Shell, DUBAI. Avl Balance is AED 1,000.00.",
+            into: context,
+            date: lastMonth
+        )
+
+        stored = try context.fetch(FetchDescriptor<Expense>())
+        let backdated = try #require(stored.first { $0.merchant == "Shell" })
+        #expect(calendar.isDate(backdated.date, inSameDayAs: lastMonth))
+        #expect(!calendar.isDateInToday(backdated.date))
     }
 }
