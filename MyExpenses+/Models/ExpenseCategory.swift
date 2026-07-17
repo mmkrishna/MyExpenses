@@ -1,76 +1,49 @@
-//
-//  ExpenseCategory.swift
-//  MyExpenses+
-//
-//  Created by Murali Krishna on 15/07/2026.
-//
-
+import SwiftData
 import SwiftUI
 
-enum ExpenseCategory: String, Codable, CaseIterable, Identifiable {
-    case food = "Food"
-    case coffee = "Coffee"
-    case grocery = "Grocery"
-    case fuel = "Fuel"
-    case transport = "Transport"
-    case parkingSubscription = "Parking Subscription"
-    case carLicense = "Car License"
-    case shopping = "Shopping"
-    case entertainment = "Entertainment"
-    case health = "Health"
-    case bills = "Bills"
-    case insurance = "Insurance"
-    case rent = "Rent"
-    case travel = "Travel"
-    case subscription = "Subscription"
-    case other = "Other"
+/// A spending category. Built-ins are seeded on first launch; users can add
+/// their own, which is why this is a model rather than an enum.
+///
+/// CloudKit-compatible by construction: every attribute has a default and the
+/// relationship is optional.
+@Model
+final class ExpenseCategory {
+    var id: UUID = UUID()
+    var name: String = ""
+    var symbolName: String = "tag.fill"
+    var colorHex: String = "#8E8E93"
+    /// Built-ins can be renamed/recoloured but not deleted, so an expense always
+    /// has somewhere sensible to live.
+    var isBuiltIn: Bool = false
+    var sortOrder: Int = 0
 
-    var id: String { rawValue }
+    /// Nullify rather than cascade: deleting a category must never delete the
+    /// user's expenses, only uncategorise them.
+    @Relationship(deleteRule: .nullify, inverse: \Expense.category)
+    var expenses: [Expense]?
 
-    var displayName: String { rawValue }
-
-    var systemImage: String {
-        switch self {
-        case .food: "fork.knife"
-        case .coffee: "cup.and.saucer.fill"
-        case .grocery: "cart.fill"
-        case .fuel: "fuelpump.fill"
-        case .transport: "car.fill"
-        case .parkingSubscription: "parkingsign.circle.fill"
-        case .carLicense: "licenseplate.fill"
-        case .shopping: "bag.fill"
-        case .entertainment: "film.fill"
-        case .health: "heart.fill"
-        case .bills: "doc.text.fill"
-        case .insurance: "shield.fill"
-        case .rent: "house.fill"
-        case .travel: "airplane"
-        case .subscription: "repeat.circle.fill"
-        case .other: "ellipsis.circle.fill"
-        }
+    init(
+        id: UUID = UUID(),
+        name: String,
+        symbolName: String,
+        colorHex: String,
+        isBuiltIn: Bool = false,
+        sortOrder: Int = 0
+    ) {
+        self.id = id
+        self.name = name
+        self.symbolName = symbolName
+        self.colorHex = colorHex
+        self.isBuiltIn = isBuiltIn
+        self.sortOrder = sortOrder
     }
 
-    var color: Color {
-        switch self {
-        case .food: .orange
-        case .coffee: .brown
-        case .grocery: .green
-        case .fuel: .red
-        case .transport: .blue
-        // The system palette is fully used by the cases above, so the rest are custom
-        // tones picked from the unused hue gaps. Each is dark/saturated enough to keep
-        // a white glyph legible on top, which rules out anything yellow.
-        case .parkingSubscription: Color(red: 0.62, green: 0.24, blue: 0.42) // plum
-        case .carLicense: Color(red: 0.70, green: 0.33, blue: 0.13) // rust
-        case .shopping: .purple
-        case .entertainment: .pink
-        case .health: .mint
-        case .bills: .indigo
-        case .insurance: Color(red: 0.45, green: 0.50, blue: 0.16) // olive
-        case .rent: Color(red: 0.36, green: 0.44, blue: 0.60) // steel blue
-        case .travel: .cyan
-        case .subscription: .teal
-        case .other: .gray
-        }
+    var color: Color { Color(hex: colorHex) }
+}
+
+extension ExpenseCategory {
+    /// Sorted the way the pickers and lists should present them.
+    static var displayOrder: [SortDescriptor<ExpenseCategory>] {
+        [SortDescriptor(\.sortOrder), SortDescriptor(\.name)]
     }
 }

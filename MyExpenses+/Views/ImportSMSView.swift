@@ -5,6 +5,8 @@ struct ImportSMSView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    @Query(sort: [SortDescriptor(\ExpenseCategory.sortOrder), SortDescriptor(\ExpenseCategory.name)])
+    private var categories: [ExpenseCategory]
     @State private var text: String
     @State private var transactions: [ParsedSMSTransaction] = []
 
@@ -79,20 +81,21 @@ struct ImportSMSView: View {
 
     private func transactionRow(_ transaction: Binding<ParsedSMSTransaction>) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: transaction.wrappedValue.category.systemImage)
+            let resolved = category(named: transaction.wrappedValue.categoryName)
+            Image(systemName: resolved?.symbolName ?? BuiltInCategory.fallback.systemImage)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(transaction.wrappedValue.category.color)
+                .foregroundStyle(resolved?.color ?? .gray)
                 .frame(width: 38, height: 38)
-                .background(transaction.wrappedValue.category.color.opacity(0.15))
+                .background((resolved?.color ?? .gray).opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.wrappedValue.merchant)
                     .font(.body.weight(.medium))
                     .lineLimit(1)
-                Picker("Category", selection: transaction.category) {
-                    ForEach(ExpenseCategory.allCases) { category in
-                        Label(category.displayName, systemImage: category.systemImage).tag(category)
+                Picker("ExpenseCategory", selection: transaction.categoryName) {
+                    ForEach(categories) { category in
+                        Label(category.name, systemImage: category.symbolName).tag(category.name)
                     }
                 }
                 .labelsHidden()
@@ -106,6 +109,10 @@ struct ImportSMSView: View {
                 .font(.body.weight(.semibold))
                 .monospacedDigit()
         }
+    }
+
+    private func category(named name: String) -> ExpenseCategory? {
+        categories.first { $0.name.lowercased() == name.lowercased() }
     }
 
     private func addAll() {

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// A recurring expense series expressed as what it costs per month.
 ///
@@ -7,7 +8,7 @@ import Foundation
 struct RecurringCommitment: Identifiable {
     let id: UUID
     let merchant: String
-    let category: ExpenseCategory
+    let category: ExpenseCategory?
     let frequency: RecurrenceFrequency
     /// The amount actually charged each time (e.g. 2,400 once a year).
     let chargedAmount: Decimal
@@ -21,8 +22,11 @@ struct RecurringCommitment: Identifiable {
     }
 
     var displayName: String {
-        merchant.isEmpty ? category.displayName : merchant
+        merchant.isEmpty ? (category?.name ?? BuiltInCategory.fallback.rawValue) : merchant
     }
+
+    var symbolName: String { category?.symbolName ?? BuiltInCategory.fallback.systemImage }
+    var color: Color { category?.color ?? Color(hex: BuiltInCategory.fallback.colorHex) }
 }
 
 enum RecurringCommitments {

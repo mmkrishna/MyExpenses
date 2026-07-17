@@ -21,7 +21,7 @@ struct SMSExpenseParserTests {
         #expect(tx.merchant == "Noon")
         #expect(tx.paymentMethod == .debitCard)
         #expect(tx.cardLast4 == "0807")
-        #expect(tx.category == .shopping)
+        #expect(tx.categoryName == "Shopping")
     }
 
     @Test func parsesMultipleTransactionsInOneBlob() {
@@ -37,18 +37,18 @@ struct SMSExpenseParserTests {
 
         #expect(result[0].amount == Decimal(string: "42.93"))
         #expect(result[0].merchant == "Noon")
-        #expect(result[0].category == .shopping)
+        #expect(result[0].categoryName == "Shopping")
 
         #expect(result[1].amount == Decimal(string: "20.00"))
         #expect(result[1].merchant == "SOCIAL HUB FZCO")
-        #expect(result[1].category == .other)
+        #expect(result[1].categoryName == "Other")
 
         #expect(result[2].amount == Decimal(string: "25.40"))
         #expect(result[2].merchant == "Noon")
 
         #expect(result[3].amount == Decimal(string: "14.00"))
         #expect(result[3].merchant == "AL JEERAN REST LLC")
-        #expect(result[3].category == .food) // "REST" keyword
+        #expect(result[3].categoryName == "Food") // "REST" keyword
     }
 
     @Test func everyTransactionUsesDebitCard() {
@@ -69,6 +69,6 @@ struct SMSExpenseParserTests {
         let tx = try! #require(result.first)
         #expect(tx.amount == Decimal(string: "1250.00"))
         #expect(tx.paymentMethod == .creditCard)
-        #expect(tx.category == .travel)
+        #expect(tx.categoryName == "Travel")
     }
 }

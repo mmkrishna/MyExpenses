@@ -18,6 +18,12 @@ struct DashboardMetricTests {
         calendar.date(byAdding: .month, value: -months, to: now) ?? now
     }
 
+    /// Categories are rows now; tests use unmanaged instances from the real seed
+    /// factory, which needs no container.
+    private func cat(_ builtIn: BuiltInCategory) -> ExpenseCategory {
+        builtIn.makeCategory(sortOrder: 0)
+    }
+
     @Test func tappingCyclesThroughEveryMetricAndWrapsAround() {
         let viewModel = DashboardViewModel()
         #expect(viewModel.metric == .currentMonth)
@@ -35,10 +41,10 @@ struct DashboardMetricTests {
     @Test func eachMetricReportsItsOwnFigure() {
         // 4,500 rent this month (recurring, monthly) + a 100 one-off this month,
         // plus a 300 one-off in a previous month.
-        let rent = Expense(amount: 4500, category: .rent, date: now,
+        let rent = Expense(amount: 4500, category: cat(.rent), date: now,
                            merchant: "Landlord", recurrenceFrequency: .monthly, seriesID: UUID())
-        let coffeeThisMonth = Expense(amount: 100, category: .coffee, date: now, merchant: "Cafe")
-        let oldExpense = Expense(amount: 300, category: .food, date: monthsAgo(1), merchant: "Diner")
+        let coffeeThisMonth = Expense(amount: 100, category: cat(.coffee), date: now, merchant: "Cafe")
+        let oldExpense = Expense(amount: 300, category: cat(.food), date: monthsAgo(1), merchant: "Diner")
         let expenses = [rent, coffeeThisMonth, oldExpense]
 
         let viewModel = DashboardViewModel()
@@ -59,8 +65,8 @@ struct DashboardMetricTests {
 
     @Test func monthlyAverageOnlyCountsMonthsThatHaveExpenses() {
         // Two expenses six months apart: average over 2 months, not 6.
-        let a = Expense(amount: 100, category: .food, date: now, merchant: "A")
-        let b = Expense(amount: 300, category: .food, date: monthsAgo(6), merchant: "B")
+        let a = Expense(amount: 100, category: cat(.food), date: now, merchant: "A")
+        let b = Expense(amount: 300, category: cat(.food), date: monthsAgo(6), merchant: "B")
         #expect(ExpenseSummary.monthlyAverage(for: [a, b], calendar: calendar) == 200)
     }
 

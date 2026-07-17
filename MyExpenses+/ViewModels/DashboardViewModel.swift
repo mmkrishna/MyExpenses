@@ -1,11 +1,17 @@
 import Foundation
+import SwiftUI
 import Observation
 
 struct CategorySpending: Identifiable {
-    let category: ExpenseCategory
+    let category: ExpenseCategory?
     let total: Decimal
 
-    var id: String { category.id }
+    /// Uncategorised expenses still need a stable identity in lists/charts.
+    var id: String { category?.id.uuidString ?? "uncategorised" }
+
+    var name: String { category?.name ?? BuiltInCategory.fallback.rawValue }
+    var symbolName: String { category?.symbolName ?? BuiltInCategory.fallback.systemImage }
+    var color: Color { category?.color ?? Color(hex: BuiltInCategory.fallback.colorHex) }
 }
 
 /// The figures the hero card cycles through when tapped.

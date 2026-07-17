@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var viewModel = SettingsViewModel()
     @State private var showingRestoreImporter = false
     @State private var showingEditProfile = false
+    @State private var showingCategories = false
 
     var body: some View {
         NavigationStack {
@@ -57,6 +58,14 @@ struct SettingsView: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 120)
+                    }
+                }
+
+                Section("Categories") {
+                    Button {
+                        showingCategories = true
+                    } label: {
+                        Label("Manage Categories", systemImage: "tag")
                     }
                 }
 
@@ -129,6 +138,9 @@ struct SettingsView: View {
             .scrollDismissesKeyboard(.interactively)
             .sheet(isPresented: $showingEditProfile) {
                 EditProfileView()
+            }
+            .sheet(isPresented: $showingCategories) {
+                ManageCategoriesView()
             }
             .sheet(item: Binding(
                 get: { viewModel.shareURL.map(ShareItem.init) },

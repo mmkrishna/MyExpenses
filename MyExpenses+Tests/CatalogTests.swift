@@ -2,11 +2,13 @@
 //  CatalogTests.swift
 //  MyExpenses+Tests
 //
-//  Guards the category / payment-method catalogs: a mistyped SF Symbol name
-//  renders as a blank icon at runtime rather than failing to build.
+//  Guards the built-in catalogue and the seeding that turns it into rows.
+//  A mistyped SF Symbol renders as a blank icon at runtime rather than failing
+//  the build, so it is checked here.
 //
 
 import Foundation
+import SwiftData
 import Testing
 import UIKit
 @testable import MyExpenses_
@@ -14,8 +16,8 @@ import UIKit
 @MainActor
 struct CatalogTests {
 
-    @Test func everyCategoryIconIsARealSFSymbol() {
-        for category in ExpenseCategory.allCases {
+    @Test func everyBuiltInIconIsARealSFSymbol() {
+        for category in BuiltInCategory.allCases {
             #expect(
                 UIImage(systemName: category.systemImage) != nil,
                 "\(category.rawValue) has an invalid SF Symbol: \(category.systemImage)"
@@ -32,12 +34,23 @@ struct CatalogTests {
         }
     }
 
-    @Test func newCategoriesAndPaymentMethodExist() {
-        #expect(ExpenseCategory(rawValue: "Rent") == .rent)
-        #expect(ExpenseCategory(rawValue: "Parking Subscription") == .parkingSubscription)
-        #expect(ExpenseCategory(rawValue: "Insurance") == .insurance)
-        #expect(ExpenseCategory(rawValue: "Car License") == .carLicense)
-        #expect(PaymentMethod(rawValue: "Check") == .check)
+    @Test func builtInsCoverTheExpectedCategories() {
+        let names = Set(BuiltInCategory.allCases.map(\.rawValue))
+        for expected in ["Food", "Coffee", "Grocery", "Fuel", "Transport", "Parking Subscription",
+                         "Car License", "Shopping", "Entertainment", "Health", "Bills",
+                         "Insurance", "Rent", "Travel", "Subscription", "Other"] {
+            #expect(names.contains(expected), "missing built-in: \(expected)")
+        }
+        #expect(names.count == BuiltInCategory.allCases.count) // no duplicate names
+    }
+
+    @Test func everyBuiltInColourParsesToSomethingOtherThanTheFallback() {
+        // Color(hex:) silently falls back to grey on a malformed string, so a typo
+        // would otherwise go unnoticed. Only "Other" is legitimately grey.
+        for category in BuiltInCategory.allCases where category != .other {
+            #expect(category.colorHex.count == 7 && category.colorHex.hasPrefix("#"),
+                    "\(category.rawValue) has a malformed hex: \(category.colorHex)")
+        }
     }
 
     @Test func insuranceMerchantsAreCategorised() {
@@ -47,19 +60,30 @@ struct CatalogTests {
         #expect(SMSExpenseParser.guessCategory(for: "Noon") == .shopping)
     }
 
-    @Test func categoryRawValuesAreUnique() {
-        let raws = ExpenseCategory.allCases.map(\.rawValue)
-        #expect(Set(raws).count == raws.count)
-    }
+    // MARK: - Seeding
 
-    /// Existing stored expenses must keep decoding after new cases are added.
-    @Test func previouslyStoredCategoriesStillDecode() {
-        for raw in ["Food", "Coffee", "Grocery", "Fuel", "Transport", "Shopping",
-                    "Entertainment", "Health", "Bills", "Travel", "Subscription", "Other"] {
-            #expect(ExpenseCategory(rawValue: raw) != nil, "lost category: \(raw)")
-        }
-        for raw in ["Cash", "Credit Card", "Debit Card", "Bank Transfer", "Digital Wallet", "Other"] {
-            #expect(PaymentMethod(rawValue: raw) != nil, "lost payment method: \(raw)")
-        }
+    @Test func seedingCreatesBuiltInsOnceAndIsIdempotent() throws {
+        let container = try ModelContainer(
+            for: Schema(versionedSchema: SchemaV1.self),
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        )
+        let context = container.mainContext
+
+        #expect(CategoryStore.seedBuiltInsIfNeeded(in: context) == true)
+        #expect(CategoryStore.all(in: context).count == BuiltInCategory.allCases.count)
+        #expect(CategoryStore.all(in: context).allSatisfy { $0.isBuiltIn })
+
+        // Running again must not duplicate rows.
+        #expect(CategoryStore.seedBuiltInsIfNeeded(in: context) == false)
+        #expect(CategoryStore.all(in: context).count == BuiltInCategory.allCases.count)
+
+        // Lookup is case-insensitive, and unknown names create a custom category.
+        #expect(CategoryStore.find(named: "rent", in: context)?.name == "Rent")
+        let custom = CategoryStore.findOrCreate(named: "Childcare", in: context)
+        #expect(custom.isBuiltIn == false)
+        #expect(CategoryStore.all(in: context).count == BuiltInCategory.allCases.count + 1)
+
+        // Seeded categories keep the catalogue's order.
+        #expect(CategoryStore.all(in: context).first?.name == BuiltInCategory.food.rawValue)
     }
 }

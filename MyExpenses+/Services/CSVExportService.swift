@@ -2,7 +2,7 @@ import Foundation
 
 enum CSVExportService {
     static func export(_ expenses: [Expense]) -> URL? {
-        var lines = ["Date,Category,Merchant,Amount,Currency,Payment Method,Notes"]
+        var lines = ["Date,ExpenseCategory,Merchant,Amount,Currency,Payment Method,Notes"]
 
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -10,7 +10,7 @@ enum CSVExportService {
         for expense in expenses.sorted(by: { $0.date > $1.date }) {
             let fields = [
                 dateFormatter.string(from: expense.date),
-                expense.category.displayName,
+                expense.categoryName,
                 expense.merchant,
                 NSDecimalNumber(decimal: expense.amount).stringValue,
                 expense.currency,

@@ -77,10 +77,10 @@ struct ReportsView: View {
             }
             if let highest = viewModel.highestCategory(expenses) {
                 StatisticCard(
-                    title: "Top Category This Month",
-                    value: "\(highest.category.displayName) · \(CurrencyFormatter.string(from: highest.total))",
-                    systemImage: highest.category.systemImage,
-                    tint: highest.category.color
+                    title: "Top ExpenseCategory This Month",
+                    value: "\(highest.name) · \(CurrencyFormatter.string(from: highest.total))",
+                    systemImage: highest.symbolName,
+                    tint: highest.color
                 )
             }
         }
@@ -112,11 +112,11 @@ struct ReportsView: View {
 
     private func commitmentRow(_ commitment: RecurringCommitment) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: commitment.category.systemImage)
+            Image(systemName: commitment.symbolName)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(commitment.category.color)
+                .foregroundStyle(commitment.color)
                 .frame(width: 28, height: 28)
-                .background(commitment.category.color.opacity(0.15))
+                .background(commitment.color.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .accessibilityHidden(true)
 
@@ -189,7 +189,7 @@ struct ReportsView: View {
 
     private var categoryChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Spending by Category")
+            Text("Spending by ExpenseCategory")
                 .font(.headline)
 
             if categoryTotals.isEmpty {
@@ -206,18 +206,18 @@ struct ReportsView: View {
                         angularInset: 1.5
                     )
                     .cornerRadius(4)
-                    .foregroundStyle(entry.category.color)
+                    .foregroundStyle(entry.color)
                 }
                 .frame(height: 200)
-                .accessibilityLabel("Category breakdown pie chart for the current month")
+                .accessibilityLabel("ExpenseCategory breakdown pie chart for the current month")
 
                 VStack(spacing: 8) {
                     ForEach(categoryTotals.prefix(6)) { entry in
                         HStack(spacing: 8) {
                             Circle()
-                                .fill(entry.category.color)
+                                .fill(entry.color)
                                 .frame(width: 8, height: 8)
-                            Text(entry.category.displayName)
+                            Text(entry.name)
                                 .font(.caption)
                             Spacer()
                             Text(CurrencyFormatter.string(from: entry.total))

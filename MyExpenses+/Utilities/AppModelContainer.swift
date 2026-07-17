@@ -5,15 +5,22 @@ import SwiftData
 enum AppModelContainer {
     @MainActor
     static let shared: ModelContainer = {
-        let schema = Schema([Expense.self])
-        // Keep in sync with MyExpenses_App: CloudKit is prepared but not enabled.
+        let schema = Schema(versionedSchema: SchemaV1.self)
+        // CloudKit is prepared but not enabled: flipping this to `.automatic`
+        // (with the iCloud capability re-added) turns on sync.
         let configuration = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
             cloudKitDatabase: .none
         )
         do {
-            return try ModelContainer(for: schema, configurations: [configuration])
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: MyExpensesMigrationPlan.self,
+                configurations: [configuration]
+            )
+            CategoryStore.seedBuiltInsIfNeeded(in: container.mainContext)
+            return container
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }

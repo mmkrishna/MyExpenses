@@ -1,10 +1,11 @@
+import SwiftData
 import SwiftUI
 
 struct ExpenseRow: View {
     let expense: Expense
 
     private var title: String {
-        expense.merchant.isEmpty ? expense.category.displayName : expense.merchant
+        expense.merchant.isEmpty ? expense.categoryName : expense.merchant
     }
 
     private var formattedAmount: String {
@@ -13,11 +14,11 @@ struct ExpenseRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: expense.category.systemImage)
+            Image(systemName: expense.categorySymbol)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(expense.category.color)
+                .foregroundStyle(expense.categoryColor)
                 .frame(width: 40, height: 40)
-                .background(expense.category.color.opacity(0.15))
+                .background(expense.categoryColor.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .accessibilityHidden(true)
 
@@ -51,7 +52,8 @@ struct ExpenseRow: View {
 
 #Preview {
     List {
-        ExpenseRow(expense: Expense(amount: 24.99, category: .food, merchant: "Coffee Shop"))
-        ExpenseRow(expense: Expense(amount: 85.00, category: .transport, merchant: "Uber"))
+        ExpenseRow(expense: Expense(amount: 24.99, merchant: "Coffee Shop"))
+        ExpenseRow(expense: Expense(amount: 85.00, merchant: "Uber"))
     }
+    .modelContainer(SampleData.previewContainer)
 }

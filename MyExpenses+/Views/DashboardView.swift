@@ -192,7 +192,7 @@ struct DashboardView: View {
 
     private var categoryBreakdownSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Spending by Category")
+            Text("Spending by ExpenseCategory")
                 .font(.headline)
 
             VStack(spacing: 14) {
@@ -209,15 +209,15 @@ struct DashboardView: View {
 
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
-                Image(systemName: entry.category.systemImage)
+                Image(systemName: entry.symbolName)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(entry.category.color)
+                    .foregroundStyle(entry.color)
                     .frame(width: 24, height: 24)
-                    .background(entry.category.color.opacity(0.15))
+                    .background(entry.color.opacity(0.15))
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     .accessibilityHidden(true)
 
-                Text(entry.category.displayName)
+                Text(entry.name)
                     .font(.subheadline.weight(.medium))
 
                 Spacer()
@@ -232,14 +232,14 @@ struct DashboardView: View {
                     .fill(Color.secondary.opacity(0.15))
                     .overlay(alignment: .leading) {
                         Capsule()
-                            .fill(entry.category.color)
+                            .fill(entry.color)
                             .frame(width: geometry.size.width * fraction)
                     }
             }
             .frame(height: 6)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(entry.category.displayName): \(CurrencyFormatter.string(from: entry.total))")
+        .accessibilityLabel("\(entry.name): \(CurrencyFormatter.string(from: entry.total))")
     }
 
     private var remainingBudgetText: String {

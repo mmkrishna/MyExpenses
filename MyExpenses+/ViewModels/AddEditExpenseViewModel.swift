@@ -7,7 +7,7 @@ final class AddEditExpenseViewModel {
     private let editingExpense: Expense?
 
     var amountText: String
-    var category: ExpenseCategory
+    var category: ExpenseCategory?
     var merchant: String
     var date: Date
     var notes: String
@@ -21,7 +21,7 @@ final class AddEditExpenseViewModel {
     init(editing expense: Expense? = nil) {
         editingExpense = expense
         amountText = expense.map { NSDecimalNumber(decimal: $0.amount).stringValue } ?? ""
-        category = expense?.category ?? .other
+        category = expense?.category
         merchant = expense?.merchant ?? ""
         date = expense?.date ?? Date()
         notes = expense?.notes ?? ""

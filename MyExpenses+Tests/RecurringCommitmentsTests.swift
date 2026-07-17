@@ -18,6 +18,12 @@ struct RecurringCommitmentsTests {
         calendar.date(byAdding: .month, value: -months, to: now) ?? now
     }
 
+    /// Categories are rows now; tests use unmanaged instances from the real seed
+    /// factory, which needs no container.
+    private func cat(_ builtIn: BuiltInCategory) -> ExpenseCategory {
+        builtIn.makeCategory(sortOrder: 0)
+    }
+
     private func approx(_ value: Decimal, _ expected: Double, tolerance: Double = 0.01) -> Bool {
         abs(NSDecimalNumber(decimal: value).doubleValue - expected) < tolerance
     }
@@ -37,15 +43,15 @@ struct RecurringCommitmentsTests {
     @Test func activeCommitmentsComeFromSeriesAnchorsOnly() {
         let series = UUID()
         let anchor = Expense(
-            amount: 900, category: .parkingSubscription, date: monthsAgo(2),
+            amount: 900, category: cat(.parkingSubscription), date: monthsAgo(2),
             merchant: "Parkin", recurrenceFrequency: .quarterly, seriesID: series
         )
         // A generated occurrence carries the seriesID but no frequency.
         let occurrence = Expense(
-            amount: 900, category: .parkingSubscription, date: now,
+            amount: 900, category: cat(.parkingSubscription), date: now,
             merchant: "Parkin", seriesID: series
         )
-        let oneOff = Expense(amount: 25, category: .coffee, date: now, merchant: "Starbucks")
+        let oneOff = Expense(amount: 25, category: cat(.coffee), date: now, merchant: "Starbucks")
 
         let commitments = RecurringCommitments.active(in: [anchor, occurrence, oneOff], on: now)
 
@@ -56,7 +62,7 @@ struct RecurringCommitmentsTests {
 
     @Test func endedSeriesIsNotAnActiveCommitment() {
         let ended = Expense(
-            amount: 1200, category: .subscription, date: monthsAgo(6),
+            amount: 1200, category: cat(.subscription), date: monthsAgo(6),
             merchant: "Old Gym", recurrenceFrequency: .yearly,
             recurrenceEndDate: monthsAgo(3), seriesID: UUID()
         )
@@ -66,11 +72,11 @@ struct RecurringCommitmentsTests {
     }
 
     @Test func totalMonthlySumsEveryCommitment() {
-        let rent = Expense(amount: 4500, category: .rent, date: monthsAgo(2),
+        let rent = Expense(amount: 4500, category: cat(.rent), date: monthsAgo(2),
                            merchant: "Landlord", recurrenceFrequency: .monthly, seriesID: UUID())
-        let parking = Expense(amount: 900, category: .parkingSubscription, date: monthsAgo(2),
+        let parking = Expense(amount: 900, category: cat(.parkingSubscription), date: monthsAgo(2),
                               merchant: "Parkin", recurrenceFrequency: .quarterly, seriesID: UUID())
-        let insurance = Expense(amount: 2400, category: .bills, date: monthsAgo(4),
+        let insurance = Expense(amount: 2400, category: cat(.bills), date: monthsAgo(4),
                                 merchant: "Insurance Co", recurrenceFrequency: .yearly, seriesID: UUID())
 
         let total = RecurringCommitments.totalMonthly(
@@ -80,7 +86,7 @@ struct RecurringCommitmentsTests {
     }
 
     @Test func commitmentIsNotChargedToMonthsBeforeItStarted() {
-        let insurance = Expense(amount: 2400, category: .bills, date: monthsAgo(2),
+        let insurance = Expense(amount: 2400, category: cat(.bills), date: monthsAgo(2),
                                 merchant: "Insurance Co", recurrenceFrequency: .yearly, seriesID: UUID())
         let commitment = try! #require(RecurringCommitments.all(in: [insurance]).first)
 
@@ -93,7 +99,7 @@ struct RecurringCommitmentsTests {
 
     @Test func amortizedSeriesSpreadsYearlyChargeInsteadOfSpiking() {
         // Paid 2,400 once, 2 months ago.
-        let insurance = Expense(amount: 2400, category: .bills, date: monthsAgo(2),
+        let insurance = Expense(amount: 2400, category: cat(.bills), date: monthsAgo(2),
                                 merchant: "Insurance Co", recurrenceFrequency: .yearly, seriesID: UUID())
         let viewModel = ReportsViewModel()
 
@@ -110,9 +116,9 @@ struct RecurringCommitmentsTests {
     @Test func amortizedSeriesDoesNotDoubleCountRecurringCharges() {
         // A monthly rent series: anchor plus a real occurrence in the current month.
         let series = UUID()
-        let anchor = Expense(amount: 4500, category: .rent, date: monthsAgo(1),
+        let anchor = Expense(amount: 4500, category: cat(.rent), date: monthsAgo(1),
                              merchant: "Landlord", recurrenceFrequency: .monthly, seriesID: series)
-        let occurrence = Expense(amount: 4500, category: .rent, date: now,
+        let occurrence = Expense(amount: 4500, category: cat(.rent), date: now,
                                  merchant: "Landlord", seriesID: series)
 
         let amortized = ReportsViewModel()
@@ -124,8 +130,8 @@ struct RecurringCommitmentsTests {
     }
 
     @Test func amortizedSeriesKeepsOneOffExpenses() {
-        let coffee = Expense(amount: 25, category: .coffee, date: now, merchant: "Starbucks")
-        let rent = Expense(amount: 4500, category: .rent, date: now,
+        let coffee = Expense(amount: 25, category: cat(.coffee), date: now, merchant: "Starbucks")
+        let rent = Expense(amount: 4500, category: cat(.rent), date: now,
                            merchant: "Landlord", recurrenceFrequency: .monthly, seriesID: UUID())
 
         let amortized = ReportsViewModel()

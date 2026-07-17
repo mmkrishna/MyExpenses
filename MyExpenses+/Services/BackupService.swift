@@ -16,7 +16,9 @@ struct ExpenseBackupRecord: Codable {
     init(expense: Expense) {
         id = expense.id
         amount = expense.amount
-        category = expense.category.rawValue
+        // Stored by name rather than by reference, so a backup stays readable
+        // and restores even if categories change.
+        category = expense.categoryName
         date = expense.date
         notes = expense.notes
         paymentMethod = expense.paymentMethod
@@ -26,11 +28,13 @@ struct ExpenseBackupRecord: Codable {
         updatedAt = expense.updatedAt
     }
 
-    func makeExpense() -> Expense {
+    /// Recreates the expense, resolving its category by name and recreating the
+    /// category if it no longer exists, so nothing is lost on restore.
+    func makeExpense(in context: ModelContext) -> Expense {
         Expense(
             id: id,
             amount: amount,
-            category: ExpenseCategory(rawValue: category) ?? .other,
+            category: CategoryStore.findOrCreate(named: category, in: context),
             date: date,
             notes: notes,
             paymentMethod: paymentMethod,
@@ -69,7 +73,7 @@ enum BackupService {
         let existingIDs = Set(existing.map(\.id))
         var restoredCount = 0
         for record in records where !existingIDs.contains(record.id) {
-            context.insert(record.makeExpense())
+            context.insert(record.makeExpense(in: context))
             restoredCount += 1
         }
         return restoredCount

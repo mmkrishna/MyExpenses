@@ -5,6 +5,8 @@ struct AddExpenseView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    @Query(sort: [SortDescriptor(\ExpenseCategory.sortOrder), SortDescriptor(\ExpenseCategory.name)])
+    private var categories: [ExpenseCategory]
     @State private var viewModel: AddEditExpenseViewModel
     @FocusState private var amountFieldFocused: Bool
 
@@ -92,6 +94,11 @@ struct AddExpenseView: View {
                 }
             }
             .onAppear {
+                // A new expense starts on the fallback category rather than none.
+                if viewModel.category == nil {
+                    viewModel.category = categories.first { $0.name == BuiltInCategory.fallback.rawValue }
+                        ?? categories.first
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     amountFieldFocused = true
                 }
@@ -102,8 +109,8 @@ struct AddExpenseView: View {
     private var categoryPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(ExpenseCategory.allCases) { option in
-                    CategoryChip(category: option, isSelected: option == viewModel.category) {
+                ForEach(categories) { option in
+                    CategoryChip(category: option, isSelected: option.id == viewModel.category?.id) {
                         viewModel.category = option
                     }
                 }

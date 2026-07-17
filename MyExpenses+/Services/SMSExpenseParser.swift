@@ -6,7 +6,9 @@ struct ParsedSMSTransaction: Identifiable {
     var amount: Decimal
     var currency: String
     var merchant: String
-    var category: ExpenseCategory
+    /// The guessed category's name. Resolved to a `ExpenseCategory` where a context is
+    /// available, so the parser itself stays free of SwiftData.
+    var categoryName: String
     var paymentMethod: PaymentMethod
     var cardLast4: String?
     var rawText: String
@@ -42,7 +44,7 @@ enum SMSExpenseParser {
                 amount: amount,
                 currency: currency.uppercased(),
                 merchant: merchant,
-                category: guessCategory(for: merchant),
+                categoryName: guessCategory(for: merchant).rawValue,
                 paymentMethod: cardType.lowercased() == "credit" ? .creditCard : .debitCard,
                 cardLast4: capture(match, 4, in: text),
                 rawText: fullMatch(match, in: text)
@@ -74,7 +76,7 @@ enum SMSExpenseParser {
         return name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static let categoryKeywords: [(ExpenseCategory, [String])] = [
+    private static let categoryKeywords: [(BuiltInCategory, [String])] = [
         (.coffee, ["COFFEE", "STARBUCKS", "COSTA", "TIM HORTON", "CAFFE", "ARABICA", "BLUE BOTTLE"]),
         (.food, ["REST", "RESTAURANT", "CAFE", "GRILL", "KITCHEN", "SHAWARMA", "BURGER", "PIZZA", "MCDONALD", "KFC", "SUBWAY", "DINING"]),
         (.grocery, ["CARREFOUR", "LULU", "SUPERMARKET", "GROCERY", "SPINNEYS", "UNION COOP", "WAITROSE", "AL MAYA", "MART", "HYPERMARKET"]),
@@ -89,11 +91,11 @@ enum SMSExpenseParser {
         (.shopping, ["NOON", "AMAZON", "NAMSHI", "IKEA", "MALL", "CENTREPOINT", "UNIQLO", "SHARAF", "H&M", "STORE"]),
     ]
 
-    static func guessCategory(for merchant: String) -> ExpenseCategory {
+    static func guessCategory(for merchant: String) -> BuiltInCategory {
         let upper = merchant.uppercased()
         for (category, keywords) in categoryKeywords where keywords.contains(where: upper.contains) {
             return category
         }
-        return .other
+        return .fallback
     }
 }

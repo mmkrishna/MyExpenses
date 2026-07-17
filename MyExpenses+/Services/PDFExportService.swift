@@ -35,7 +35,7 @@ enum PDFExportService {
                 )
                 y += 28
 
-                let columns: [(String, CGFloat)] = [("Date", 70), ("Category", 90), ("Merchant", 140), ("Amount", 80), ("Payment", 90)]
+                let columns: [(String, CGFloat)] = [("Date", 70), ("ExpenseCategory", 90), ("Merchant", 140), ("Amount", 80), ("Payment", 90)]
                 var x = margin
                 for (title, width) in columns {
                     title.draw(at: CGPoint(x: x, y: y), withAttributes: [.font: headerFont])
@@ -51,8 +51,8 @@ enum PDFExportService {
                     x = margin
                     let values = [
                         dateFormatter.string(from: expense.date),
-                        expense.category.displayName,
-                        expense.merchant.isEmpty ? expense.category.displayName : expense.merchant,
+                        expense.categoryName,
+                        expense.merchant.isEmpty ? expense.categoryName : expense.merchant,
                         CurrencyFormatter.string(from: expense.amount, currencyCode: expense.currency),
                         expense.paymentMethod,
                     ]

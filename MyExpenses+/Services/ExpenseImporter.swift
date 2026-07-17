@@ -14,9 +14,11 @@ enum ExpenseImporter {
     static func importExpenses(_ transactions: [ParsedSMSTransaction], into context: ModelContext) -> ExpenseImportResult {
         var total = Decimal.zero
         for transaction in transactions {
+            // The parser only guesses a name; resolve it to a real category here,
+            // which also honours a category the user picked during review.
             let expense = Expense(
                 amount: transaction.amount,
-                category: transaction.category,
+                category: CategoryStore.findOrCreate(named: transaction.categoryName, in: context),
                 date: Date(),
                 notes: "",
                 paymentMethod: transaction.paymentMethod.rawValue,

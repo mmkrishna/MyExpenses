@@ -15,7 +15,7 @@ struct ExpenseImporterTests {
     // same model in one test process crashes, so all scenarios share one store here.
     @Test func importsExpenses() throws {
         let container = try ModelContainer(
-            for: Expense.self,
+            for: Schema(versionedSchema: SchemaV1.self),
             configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         )
         let context = container.mainContext
@@ -37,18 +37,18 @@ struct ExpenseImporterTests {
 
         var stored = try context.fetch(FetchDescriptor<Expense>())
         #expect(stored.count == 2)
-        #expect(stored.contains { $0.merchant == "Noon" && $0.category == .shopping })
-        #expect(stored.contains { $0.merchant == "AL JEERAN REST LLC" && $0.category == .food })
+        #expect(stored.contains { $0.merchant == "Noon" && $0.categoryName == "Shopping" })
+        #expect(stored.contains { $0.merchant == "AL JEERAN REST LLC" && $0.categoryName == "Food" })
 
         // Pre-parsed transactions keep a user's edited category.
         var parsed = SMSExpenseParser.parse(
             "Purchase of AED 20.00 with Debit Card ending 0807 at SOCIAL HUB FZCO, DUBAI. Avl Balance is AED 2,832.34."
         )
-        parsed[0].category = .entertainment
+        parsed[0].categoryName = "Entertainment"
         ExpenseImporter.importExpenses(parsed, into: context)
 
         stored = try context.fetch(FetchDescriptor<Expense>())
         #expect(stored.count == 3)
-        #expect(stored.contains { $0.merchant == "SOCIAL HUB FZCO" && $0.category == .entertainment })
+        #expect(stored.contains { $0.merchant == "SOCIAL HUB FZCO" && $0.categoryName == "Entertainment" })
     }
 }

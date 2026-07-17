@@ -17,14 +17,14 @@ struct SplashScreenView: View {
     private static let flightDuration: Double = 0.9
     private static let fadeDuration: Double = 0.35
 
-    private var categories: [ExpenseCategory] { ExpenseCategory.allCases }
+    private var categories: [BuiltInCategory] { BuiltInCategory.allCases }
 
     var body: some View {
         ZStack {
             Color("LaunchBackground")
                 .ignoresSafeArea()
 
-            // Category icons bursting away from the center
+            // ExpenseCategory icons bursting away from the center
             ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
                 let angle = Double(index) / Double(categories.count) * 2 * .pi - .pi / 2
                 let radius: CGFloat = iconsFlyOut ? 700 : 92

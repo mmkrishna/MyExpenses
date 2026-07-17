@@ -38,7 +38,7 @@ final class ExpensesViewModel {
             result = result.filter { expense in
                 expense.merchant.localizedCaseInsensitiveContains(trimmedSearch)
                     || expense.notes.localizedCaseInsensitiveContains(trimmedSearch)
-                    || expense.category.displayName.localizedCaseInsensitiveContains(trimmedSearch)
+                    || expense.categoryName.localizedCaseInsensitiveContains(trimmedSearch)
             }
         }
 

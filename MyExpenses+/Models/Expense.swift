@@ -5,7 +5,9 @@ import SwiftData
 final class Expense {
     var id: UUID = UUID()
     var amount: Decimal = 0
-    var category: ExpenseCategory = ExpenseCategory.other
+    /// Optional so that deleting a category uncategorises its expenses rather
+    /// than destroying them (and because CloudKit requires optional relationships).
+    var category: ExpenseCategory?
     var date: Date = Date.now
     var notes: String = ""
     var paymentMethod: String = "Cash"
@@ -23,7 +25,7 @@ final class Expense {
     init(
         id: UUID = UUID(),
         amount: Decimal,
-        category: ExpenseCategory = .other,
+        category: ExpenseCategory? = nil,
         date: Date = Date(),
         notes: String = "",
         paymentMethod: String = "Cash",
