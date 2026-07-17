@@ -123,6 +123,10 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
+            // The budget field uses .decimalPad, which has no return key, so it
+            // needs an explicit way to dismiss.
+            .keyboardDoneButton()
+            .scrollDismissesKeyboard(.interactively)
             .sheet(isPresented: $showingEditProfile) {
                 EditProfileView()
             }

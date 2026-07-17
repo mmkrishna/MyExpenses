@@ -77,6 +77,10 @@ struct AddExpenseView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            // Amount uses .decimalPad and Notes is multi-line, so neither keyboard
+            // can dismiss itself; the keyboard also covers the fields below.
+            .keyboardDoneButton()
+            .scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

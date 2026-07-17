@@ -54,6 +54,10 @@ struct ImportSMSView: View {
             }
             .navigationTitle("Import from SMS")
             .navigationBarTitleDisplayMode(.inline)
+            // Return inserts a newline in the TextEditor, so it needs an explicit
+            // way to dismiss.
+            .keyboardDoneButton()
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: text) { _, newValue in
                 transactions = SMSExpenseParser.parse(newValue)
             }
