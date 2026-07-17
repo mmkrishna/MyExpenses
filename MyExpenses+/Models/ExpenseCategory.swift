@@ -13,10 +13,12 @@ enum ExpenseCategory: String, Codable, CaseIterable, Identifiable {
     case grocery = "Grocery"
     case fuel = "Fuel"
     case transport = "Transport"
+    case parkingSubscription = "Parking Subscription"
     case shopping = "Shopping"
     case entertainment = "Entertainment"
     case health = "Health"
     case bills = "Bills"
+    case rent = "Rent"
     case travel = "Travel"
     case subscription = "Subscription"
     case other = "Other"
@@ -32,10 +34,12 @@ enum ExpenseCategory: String, Codable, CaseIterable, Identifiable {
         case .grocery: "cart.fill"
         case .fuel: "fuelpump.fill"
         case .transport: "car.fill"
+        case .parkingSubscription: "parkingsign.circle.fill"
         case .shopping: "bag.fill"
         case .entertainment: "film.fill"
         case .health: "heart.fill"
         case .bills: "doc.text.fill"
+        case .rent: "house.fill"
         case .travel: "airplane"
         case .subscription: "repeat.circle.fill"
         case .other: "ellipsis.circle.fill"
@@ -49,10 +53,14 @@ enum ExpenseCategory: String, Codable, CaseIterable, Identifiable {
         case .grocery: .green
         case .fuel: .red
         case .transport: .blue
+        // The system palette is fully used by the cases above. These two are custom
+        // tones chosen to stay distinct and to keep a white glyph legible on top.
+        case .parkingSubscription: Color(red: 0.62, green: 0.24, blue: 0.42) // plum
         case .shopping: .purple
         case .entertainment: .pink
         case .health: .mint
         case .bills: .indigo
+        case .rent: Color(red: 0.36, green: 0.44, blue: 0.60) // steel blue
         case .travel: .cyan
         case .subscription: .teal
         case .other: .gray
