@@ -56,6 +56,17 @@ struct SplashScreenView: View {
                 .scaledToFit()
                 .frame(width: 182, height: 182)
                 .scaleEffect(logoScale)
+
+            // Matches the storyboard's credit label: same text, 12pt system,
+            // 75% white, 24pt above the safe area. It holds still while the
+            // icons fly out, then fades with the rest of the overlay.
+            VStack {
+                Spacer()
+                Text("Developed by Murali Krishna.M")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .padding(.bottom, 24)
+            }
         }
         .opacity(overlayOpacity)
         .accessibilityHidden(true)

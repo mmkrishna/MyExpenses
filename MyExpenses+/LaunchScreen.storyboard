@@ -23,6 +23,12 @@
                                     <constraint firstAttribute="width" constant="182" id="a1a-01-w01"/>
                                 </constraints>
                             </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Developed by Murali Krishna.M" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="d4d-04-crd">
+                                <rect key="frame" x="107" y="833" width="200" height="15"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="12"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="0.75" colorSpace="custom" customColorSpace="sRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" red="0.2281827043124047" green="0.14042901271797972" blue="0.716796875" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
@@ -30,6 +36,8 @@
                         <constraints>
                             <constraint firstItem="4dQ-Vt-8Cz" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="b2b-02-cx1"/>
                             <constraint firstItem="4dQ-Vt-8Cz" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="c3c-03-cy1"/>
+                            <constraint firstItem="d4d-04-crd" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="e5e-05-cx2"/>
+                            <constraint firstItem="6Tk-OE-BBY" firstAttribute="bottom" secondItem="d4d-04-crd" secondAttribute="bottom" constant="24" id="f6f-06-bt1"/>
                         </constraints>
                     </view>
                 </viewController>
