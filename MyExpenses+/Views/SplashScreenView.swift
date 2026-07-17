@@ -21,7 +21,9 @@ struct SplashScreenView: View {
 
     var body: some View {
         ZStack {
-            Color("LaunchBackground")
+            // Must match LaunchScreen.storyboard exactly, or the handoff from the
+            // static launch screen to this animated one is a visible jump.
+            Color(.systemIndigo)
                 .ignoresSafeArea()
 
             // ExpenseCategory icons bursting away from the center
@@ -47,16 +49,12 @@ struct SplashScreenView: View {
                     )
             }
 
-            // Center logo, matching the static launch screen mark
-            ZStack {
-                Circle()
-                    .strokeBorder(.white, lineWidth: 6.6)
-                Text("$")
-                    .font(.system(size: 74, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 120, height: 120)
-            .scaleEffect(logoScale)
+            // Same artwork and size as the launch screen's image view.
+            Image("My Icons")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 120, height: 120)
+                .scaleEffect(logoScale)
         }
         .opacity(overlayOpacity)
         .accessibilityHidden(true)
