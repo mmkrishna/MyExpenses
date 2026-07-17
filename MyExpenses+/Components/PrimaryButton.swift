@@ -22,6 +22,7 @@ struct PrimaryButton: View {
                 }
                 Text(title)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -29,6 +30,10 @@ struct PrimaryButton: View {
             .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
+        // Keep this compact pill a sensible size: it still scales with Dynamic Type,
+        // but is capped so it can't wrap or dominate the row at accessibility sizes.
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+        .fixedSize(horizontal: true, vertical: false)
         .accessibilityLabel(title)
     }
 }

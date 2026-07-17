@@ -61,10 +61,12 @@ struct DashboardView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 14) {
-                        HStack {
+                        HStack(spacing: 8) {
                             Text("Recent Expenses")
                                 .font(.headline)
-                            Spacer()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Spacer(minLength: 0)
                             PrimaryButton(title: "Quick Add", systemImage: "plus") {
                                 viewModel.showingAddExpense = true
                             }
@@ -91,8 +93,8 @@ struct DashboardView: View {
                 .animation(.spring(duration: 0.4), value: recentExpenses)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Dashboard")
-            .navigationBarTitleDisplayMode(.large)
+            // No nav title: the greeting header serves as the screen's heading.
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $viewModel.showingAddExpense) {
                 AddExpenseView()
             }
