@@ -1,0 +1,76 @@
+{
+  "identifier": "DE990374-7536-43B5-85B8-A6C106651DBD",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "1.99",
+      "familyShareable": false,
+      "internalID": "3F84713C-50C0-44C6-8458-40303A3E173F",
+      "localizations": [
+        {
+          "description": "A small tip to support development.",
+          "displayName": "Buy Me a Coffee",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.mmkrishna.myexpenses.tip.coffee",
+      "referenceName": "Buy Me a Coffee",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "4.99",
+      "familyShareable": false,
+      "internalID": "2BBEA40D-B0A2-4214-ADBB-557785EBE99B",
+      "localizations": [
+        {
+          "description": "A generous tip to support development.",
+          "displayName": "Buy Me Lunch",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.mmkrishna.myexpenses.tip.lunch",
+      "referenceName": "Buy Me Lunch",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "9.99",
+      "familyShareable": false,
+      "internalID": "B7CD8826-D95F-40F6-A9AD-45ADAD7DBBEC",
+      "localizations": [
+        {
+          "description": "Support ongoing development of the app.",
+          "displayName": "Become a Supporter",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.mmkrishna.myexpenses.tip.supporter",
+      "referenceName": "Become a Supporter",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "19.99",
+      "familyShareable": false,
+      "internalID": "4E523B7A-527F-47DC-B319-B896362E4306",
+      "localizations": [
+        {
+          "description": "The biggest thank-you for supporting independent development.",
+          "displayName": "Ultimate Supporter",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.mmkrishna.myexpenses.tip.ultimate",
+      "referenceName": "Ultimate Supporter",
+      "type": "Consumable"
+    }
+  ],
+  "settings": {
+    "_applicationInternalID": "",
+    "_developerTeamID": "",
+    "_lastSynchronizedDate": 0
+  },
+  "subscriptionGroups": [],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

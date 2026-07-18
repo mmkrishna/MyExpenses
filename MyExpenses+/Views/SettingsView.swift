@@ -3,6 +3,7 @@
 //
 // Created by Murali Krishna on 15/07/2026.
 
+import StoreKit
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -15,6 +16,8 @@ struct SettingsView: View {
     @State private var showingRestoreImporter = false
     @State private var showingEditProfile = false
     @State private var showingCategories = false
+    @State private var tipStore = TipStore()
+    @State private var showingThankYou = false
 
     // Read from the bundle so the shipped version is always what's shown.
     private var appVersion: String {
@@ -22,6 +25,37 @@ struct SettingsView: View {
     }
 
     // Extracted so the Form body stays small enough for the type-checker.
+    private var supportSection: some View {
+        Section {
+            Text("If this app has helped you manage your expenses, you can support future development with a one-time tip. Every contribution helps improve the app and keeps it free for everyone.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            ForEach(TipStore.Tier.allCases) { tier in
+                Button {
+                    tip(tier)
+                } label: {
+                    HStack(spacing: 12) {
+                        Text(tier.emoji)
+                            .font(.title3)
+                            .accessibilityHidden(true)
+                        Text(tier.title)
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 8)
+                        Text(tipStore.displayPrice(for: tier))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+                .accessibilityLabel("\(tier.title), \(tipStore.displayPrice(for: tier))")
+            }
+        } header: {
+            Text("❤️ Support Development")
+        } footer: {
+            Text("Tips are optional and do not unlock any additional features. Thank you for supporting independent development.")
+        }
+    }
+
     private var aboutSection: some View {
         Section {
             LabeledContent("Developed by", value: "Murali Krishna M")
@@ -147,8 +181,10 @@ struct SettingsView: View {
                     }
                 }
 
+                supportSection
                 aboutSection
             }
+            .task { await tipStore.loadProducts() }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             // The budget field uses .decimalPad, which has no return key, so it
@@ -184,6 +220,33 @@ struct SettingsView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(viewModel.alertMessage ?? "")
+            }
+            .alert("Thank You! ❤️", isPresented: $showingThankYou) {
+                Button("You're Welcome") {}
+            } message: {
+                Text("Your support means a lot and helps keep MyExpenses+ free for everyone.")
+            }
+            .alert("Support Development", isPresented: Binding(
+                get: { tipStore.errorMessage != nil },
+                set: { if !$0 { tipStore.errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(tipStore.errorMessage ?? "")
+            }
+        }
+    }
+
+    private func tip(_ tier: TipStore.Tier) {
+        guard let product = tipStore.product(for: tier) else {
+            // Products haven't loaded (offline, or the store is unreachable).
+            tipStore.errorMessage = "Tips aren't available right now. Please try again in a moment."
+            return
+        }
+        Task {
+            if await tipStore.tip(product) {
+                Haptics.success()
+                showingThankYou = true
             }
         }
     }
