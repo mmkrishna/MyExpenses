@@ -10,6 +10,9 @@ import SwiftUI
 struct ReportsView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @State private var viewModel = ReportsViewModel()
+    // Collapsed by default: the total is what matters at a glance, and the rows
+    // otherwise push the charts below the fold.
+    @State private var commitmentsExpanded = false
 
     private var monthlySeries: [MonthlyTotal] {
         viewModel.series(for: viewModel.chartMode, expenses: expenses)
@@ -88,24 +91,42 @@ struct ReportsView: View {
 
     private var commitmentsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Monthly Commitments")
-                    .font(.headline)
-                Spacer(minLength: 8)
-                Text(CurrencyFormatter.string(from: RecurringCommitments.totalMonthly(commitments)))
-                    .font(.headline)
-                    .monospacedDigit()
-            }
-
-            VStack(spacing: 14) {
-                ForEach(commitments) { commitment in
-                    commitmentRow(commitment)
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    commitmentsExpanded.toggle()
                 }
+                Haptics.tap()
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Monthly Commitments")
+                        .font(.headline)
+                    Spacer(minLength: 8)
+                    Text(CurrencyFormatter.string(from: RecurringCommitments.totalMonthly(commitments)))
+                        .font(.headline)
+                        .monospacedDigit()
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(commitmentsExpanded ? 0 : -90))
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Monthly Commitments, \(CurrencyFormatter.string(from: RecurringCommitments.totalMonthly(commitments))) per month")
+            .accessibilityValue(commitmentsExpanded ? "Expanded" : "Collapsed")
+            .accessibilityHint("Double tap to \(commitmentsExpanded ? "hide" : "show") the breakdown")
 
-            Text("What your recurring expenses work out to per month.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if commitmentsExpanded {
+                VStack(spacing: 14) {
+                    ForEach(commitments) { commitment in
+                        commitmentRow(commitment)
+                    }
+                }
+
+                Text("What your recurring expenses work out to per month.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .cardStyle()
     }
