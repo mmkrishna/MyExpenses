@@ -192,7 +192,7 @@ struct DashboardView: View {
 
     private var categoryBreakdownSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Spending by ExpenseCategory")
+            Text("Spending by Category")
                 .font(.headline)
 
             VStack(spacing: 14) {

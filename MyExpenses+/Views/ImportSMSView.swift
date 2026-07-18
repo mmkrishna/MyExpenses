@@ -128,7 +128,7 @@ struct ImportSMSView: View {
                 }
 
                 HStack(spacing: 8) {
-                    Picker("ExpenseCategory", selection: transaction.categoryName) {
+                    Picker("Category", selection: transaction.categoryName) {
                         ForEach(categories) { category in
                             Label(category.name, systemImage: category.symbolName).tag(category.name)
                         }

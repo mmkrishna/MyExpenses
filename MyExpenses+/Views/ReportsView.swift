@@ -80,7 +80,7 @@ struct ReportsView: View {
             }
             if let highest = viewModel.highestCategory(expenses) {
                 StatisticCard(
-                    title: "Top ExpenseCategory This Month",
+                    title: "Top Category This Month",
                     value: "\(highest.name) · \(CurrencyFormatter.string(from: highest.total))",
                     systemImage: highest.symbolName,
                     tint: highest.color
@@ -210,7 +210,7 @@ struct ReportsView: View {
 
     private var categoryChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Spending by ExpenseCategory")
+            Text("Spending by Category")
                 .font(.headline)
 
             if categoryTotals.isEmpty {
@@ -230,7 +230,7 @@ struct ReportsView: View {
                     .foregroundStyle(entry.color)
                 }
                 .frame(height: 200)
-                .accessibilityLabel("ExpenseCategory breakdown pie chart for the current month")
+                .accessibilityLabel("Category breakdown pie chart for the current month")
 
                 VStack(spacing: 8) {
                     ForEach(categoryTotals.prefix(6)) { entry in

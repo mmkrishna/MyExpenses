@@ -2,7 +2,7 @@ import Foundation
 
 enum CSVExportService {
     static func export(_ expenses: [Expense]) -> URL? {
-        var lines = ["Date,ExpenseCategory,Merchant,Amount,Currency,Payment Method,Notes"]
+        var lines = ["Date,Category,Merchant,Amount,Currency,Payment Method,Notes"]
 
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
