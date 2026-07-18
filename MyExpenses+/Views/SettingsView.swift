@@ -27,17 +27,16 @@ struct SettingsView: View {
     // Extracted so the Form body stays small enough for the type-checker.
     private var supportSection: some View {
         Section {
-            Text("If this app has helped you manage your expenses, you can support future development with a one-time tip. Every contribution helps improve the app and keeps it free for everyone.")
-                .font(.callout)
+            Text("A one-time tip to support development. Totally optional.")
+                .font(.caption)
                 .foregroundStyle(.secondary)
 
             ForEach(TipStore.Tier.allCases) { tier in
                 Button {
                     tip(tier)
                 } label: {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         Text(tier.emoji)
-                            .font(.title3)
                             .accessibilityHidden(true)
                         Text(tier.title)
                             .foregroundStyle(.primary)
@@ -46,13 +45,14 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
+                    .font(.subheadline)
                 }
                 .accessibilityLabel("\(tier.title), \(tipStore.displayPrice(for: tier))")
             }
         } header: {
             Text("❤️ Support Development")
         } footer: {
-            Text("Tips are optional and do not unlock any additional features. Thank you for supporting independent development.")
+            Text("Tips don't unlock anything — the app stays free. Thank you!")
         }
     }
 
