@@ -22,10 +22,18 @@ struct SplashScreenView: View {
     var body: some View {
         ZStack {
             // Must match LaunchScreen.storyboard exactly, or the handoff from the
-            // static launch screen to this animated one is a visible jump.
-            // Same displayP3 values as the storyboard's background colour.
-            Color(.displayP3, red: 0.228, green: 0.140, blue: 0.717)
-                .ignoresSafeArea()
+            // static launch screen to this animated one is a visible jump. The
+            // storyboard shows a baked "LaunchGradient" PNG; these sRGB stops are
+            // the same dark-blue -> purple used to generate it (#10184A -> #6D28D9).
+            LinearGradient(
+                colors: [
+                    Color(.sRGB, red: 16 / 255, green: 24 / 255, blue: 74 / 255),
+                    Color(.sRGB, red: 109 / 255, green: 40 / 255, blue: 217 / 255)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             // ExpenseCategory icons bursting away from the center
             ForEach(Array(categories.enumerated()), id: \.element.id) { index, category in
