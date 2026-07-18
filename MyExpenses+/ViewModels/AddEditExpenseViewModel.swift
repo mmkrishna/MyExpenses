@@ -71,7 +71,11 @@ final class AddEditExpenseViewModel {
                 date: date,
                 notes: notes,
                 paymentMethod: paymentMethod.rawValue,
-                merchant: merchant
+                merchant: merchant,
+                // Record the currency the user is entering in. Without this the
+                // model default ("USD") sticks even after they switch to AED, so
+                // the expense row would show "$".
+                currency: CurrencyFormatter.preferredCurrencyCode
             )
             context.insert(expense)
         }

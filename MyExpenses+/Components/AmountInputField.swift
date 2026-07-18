@@ -5,8 +5,13 @@ struct AmountInputField: View {
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
 
+    // Follow the currency chosen in Settings, not the device locale — otherwise
+    // a US-locale phone shows "$" even after the user switches to AED. @AppStorage
+    // so the symbol updates live when the setting changes.
+    @AppStorage("preferredCurrencyCode") private var currencyCode = CurrencyFormatter.preferredCurrencyCode
+
     private var currencySymbol: String {
-        Locale.current.currencySymbol ?? "$"
+        CurrencyFormatter.symbol(for: currencyCode)
     }
 
     var body: some View {
