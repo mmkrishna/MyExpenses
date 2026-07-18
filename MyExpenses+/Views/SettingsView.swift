@@ -16,6 +16,23 @@ struct SettingsView: View {
     @State private var showingEditProfile = false
     @State private var showingCategories = false
 
+    // Read from the bundle so the shipped version is always what's shown.
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
+    // Extracted so the Form body stays small enough for the type-checker.
+    private var aboutSection: some View {
+        Section {
+            LabeledContent("Developed by", value: "Murali Krishna M")
+            LabeledContent("Version", value: appVersion)
+        } header: {
+            Text("About")
+        } footer: {
+            Text("© 2026 Murali Krishna M")
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -129,6 +146,8 @@ struct SettingsView: View {
                         Label("Restore from Backup", systemImage: "icloud.and.arrow.down")
                     }
                 }
+
+                aboutSection
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
