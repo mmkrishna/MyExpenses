@@ -67,6 +67,8 @@ struct ImportSMSView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
             .navigationTitle("Import from SMS")
             .navigationBarTitleDisplayMode(.inline)
             // Return inserts a newline in the TextEditor, so it needs an explicit

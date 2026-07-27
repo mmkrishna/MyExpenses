@@ -22,6 +22,7 @@ struct ManageCategoriesView: View {
                     if custom.isEmpty {
                         Text("No categories of your own yet.")
                             .foregroundStyle(.secondary)
+                            .listRowBackground(Theme.card)
                     }
                     ForEach(custom) { category in
                         row(category)
@@ -39,6 +40,8 @@ struct ManageCategoriesView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
             .navigationTitle("Categories")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -80,22 +83,24 @@ struct ManageCategoriesView: View {
                 Image(systemName: category.symbolName)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-                    .background(category.color, in: Circle())
+                    .frame(width: 34, height: 34)
+                    .background(category.color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 Text(category.name)
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.primary)
                 Spacer()
                 if !category.isBuiltIn {
                     Text("Custom")
-                        .font(.caption2)
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
         }
         .buttonStyle(.plain)
+        .listRowBackground(Theme.card)
     }
 
     /// Built-ins are protected, so only the custom list is deletable.
@@ -191,6 +196,8 @@ private struct EditCategoryView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
             .navigationTitle(isEditing ? "Edit Category" : "New Category")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneButton()
