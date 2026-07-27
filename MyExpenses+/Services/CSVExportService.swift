@@ -21,7 +21,8 @@ enum CSVExportService {
         }
 
         let csvString = lines.joined(separator: "\n")
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("expenses.csv")
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("expenses-\(UUID().uuidString).csv")
 
         do {
             try csvString.write(to: url, atomically: true, encoding: .utf8)

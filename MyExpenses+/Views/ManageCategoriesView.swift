@@ -10,6 +10,7 @@ struct ManageCategoriesView: View {
 
     @State private var editing: ExpenseCategory?
     @State private var creatingNew = false
+    @State private var errorMessage: String?
 
     private var builtIns: [ExpenseCategory] { categories.filter(\.isBuiltIn) }
     private var custom: [ExpenseCategory] { categories.filter { !$0.isBuiltIn } }
@@ -60,6 +61,14 @@ struct ManageCategoriesView: View {
             .sheet(isPresented: $creatingNew) {
                 EditCategoryView(category: nil)
             }
+            .alert("Could not update categories", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
         }
     }
 
@@ -95,7 +104,11 @@ struct ManageCategoriesView: View {
         for index in offsets {
             modelContext.delete(custom[index])
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -109,6 +122,7 @@ private struct EditCategoryView: View {
     @State private var name: String = ""
     @State private var symbolName: String = "tag.fill"
     @State private var color: Color = .blue
+    @State private var errorMessage: String?
 
     /// A small, deliberately curated set — an open SF Symbol field would mostly
     /// produce blank icons from typos.
@@ -191,6 +205,14 @@ private struct EditCategoryView: View {
                 }
             }
             .onAppear(perform: load)
+            .alert("Could not save category", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
         }
     }
 
@@ -218,9 +240,13 @@ private struct EditCategoryView: View {
                 )
             )
         }
-        try? modelContext.save()
-        Haptics.success()
-        dismiss()
+        do {
+            try modelContext.save()
+            Haptics.success()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 

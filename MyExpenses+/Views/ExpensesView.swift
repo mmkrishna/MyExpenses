@@ -10,6 +10,7 @@ struct ExpensesView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = ExpensesViewModel()
+    @State private var errorMessage: String?
 
     private var visibleExpenses: [Expense] {
         viewModel.filteredAndSorted(expenses)
@@ -42,7 +43,11 @@ struct ExpensesView: View {
                                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                                         .swipeActions(edge: .trailing) {
                                             Button(role: .destructive) {
-                                                viewModel.delete(expense, context: modelContext)
+                                                do {
+                                                    try viewModel.delete(expense, context: modelContext)
+                                                } catch {
+                                                    errorMessage = error.localizedDescription
+                                                }
                                             } label: {
                                                 Label("Delete", systemImage: "trash")
                                             }
@@ -64,7 +69,11 @@ struct ExpensesView: View {
                     }
                 }
 
-                addButton
+                // The empty state has its own "Add Expense" button, so the
+                // floating one only appears once there are expenses to sit above.
+                if !expenses.isEmpty {
+                    addButton
+                }
             }
             .navigationTitle("Expenses")
             .navigationBarTitleDisplayMode(.large)
@@ -94,6 +103,14 @@ struct ExpensesView: View {
             }
             .sheet(item: $viewModel.expenseToEdit) { expense in
                 AddExpenseView(editing: expense)
+            }
+            .alert("Could not delete expense", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
             }
         }
     }

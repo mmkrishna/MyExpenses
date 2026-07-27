@@ -13,6 +13,7 @@ struct ImportSMSView: View {
     /// message in the paste; each row can then be adjusted on its own, so a
     /// batch spanning several days still files correctly.
     @State private var date = Date()
+    @State private var errorMessage: String?
 
     init(prefilledText: String = "") {
         _text = State(initialValue: prefilledText)
@@ -95,6 +96,14 @@ struct ImportSMSView: View {
                         .disabled(transactions.isEmpty)
                 }
             }
+            .alert("Could not import expenses", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
         }
     }
 
@@ -159,9 +168,17 @@ struct ImportSMSView: View {
     }
 
     private func addAll() {
-        ExpenseImporter.importExpenses(transactions, into: modelContext)
-        Haptics.success()
-        dismiss()
+        do {
+            let result = try ExpenseImporter.importExpenses(transactions, into: modelContext)
+            if result.count == 0 {
+                errorMessage = "These transactions were already imported."
+                return
+            }
+            Haptics.success()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 

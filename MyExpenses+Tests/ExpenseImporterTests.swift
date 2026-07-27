@@ -21,7 +21,7 @@ struct ExpenseImporterTests {
         let context = container.mainContext
 
         // Non-purchase text imports nothing.
-        let none = ExpenseImporter.importExpenses(from: "Your OTP is 123456.", into: context)
+        let none = try ExpenseImporter.importExpenses(from: "Your OTP is 123456.", into: context)
         #expect(none.count == 0)
         #expect(try context.fetch(FetchDescriptor<Expense>()).isEmpty)
 
@@ -30,7 +30,7 @@ struct ExpenseImporterTests {
         Purchase of AED 42.93 with Debit Card ending 0807 at Noon, 80038888. Avl Balance is AED 2,407.30. \
         Purchase of AED 14.00 with Debit Card ending 0807 at AL JEERAN REST LLC, SHARJAH. Avl Balance is AED 3,032.10.
         """
-        let result = ExpenseImporter.importExpenses(from: sms, into: context)
+        let result = try ExpenseImporter.importExpenses(from: sms, into: context)
         #expect(result.count == 2)
         #expect(result.total == Decimal(string: "56.93"))
         #expect(result.currency == "AED")
@@ -40,12 +40,17 @@ struct ExpenseImporterTests {
         #expect(stored.contains { $0.merchant == "Noon" && $0.categoryName == "Shopping" })
         #expect(stored.contains { $0.merchant == "AL JEERAN REST LLC" && $0.categoryName == "Food" })
 
+        // Replaying the same bank notification must not duplicate expenses.
+        let replay = try ExpenseImporter.importExpenses(from: sms, into: context)
+        #expect(replay.count == 0)
+        #expect(try context.fetch(FetchDescriptor<Expense>()).count == 2)
+
         // Pre-parsed transactions keep a user's edited category.
         var parsed = SMSExpenseParser.parse(
             "Purchase of AED 20.00 with Debit Card ending 0807 at SOCIAL HUB FZCO, DUBAI. Avl Balance is AED 2,832.34."
         )
         parsed[0].categoryName = "Entertainment"
-        ExpenseImporter.importExpenses(parsed, into: context)
+        try ExpenseImporter.importExpenses(parsed, into: context)
 
         stored = try context.fetch(FetchDescriptor<Expense>())
         #expect(stored.count == 3)
@@ -59,7 +64,7 @@ struct ExpenseImporterTests {
         // date the user picks rather than today.
         let calendar = Calendar.current
         let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date())!
-        ExpenseImporter.importExpenses(
+        try ExpenseImporter.importExpenses(
             from: "Purchase of AED 55.00 with Debit Card ending 0807 at Shell, DUBAI. Avl Balance is AED 1,000.00.",
             into: context,
             date: lastMonth
@@ -83,7 +88,7 @@ struct ExpenseImporterTests {
 
         let yesterday = calendar.date(byAdding: .day, value: -1, to: Date())!
         mixed[1].date = yesterday
-        ExpenseImporter.importExpenses(mixed, into: context)
+        try ExpenseImporter.importExpenses(mixed, into: context)
 
         stored = try context.fetch(FetchDescriptor<Expense>())
         let adnoc = try #require(stored.first { $0.merchant == "ADNOC" })
