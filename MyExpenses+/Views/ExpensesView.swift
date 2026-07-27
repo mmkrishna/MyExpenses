@@ -64,7 +64,7 @@ struct ExpensesView: View {
                         }
                         .listStyle(.insetGrouped)
                         .scrollContentBackground(.hidden)
-                        .background(Color(.systemGroupedBackground))
+                        .background(Theme.background)
                         .animation(.spring(duration: 0.35), value: visibleExpenses)
                     }
                 }
@@ -124,11 +124,12 @@ struct ExpensesView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .background(Circle().fill(Color.accentColor))
-                .shadow(color: Color.accentColor.opacity(0.4), radius: 10, x: 0, y: 4)
+                .background(Circle().fill(Theme.ctaGradient))
+                .shadow(color: Theme.primary.opacity(0.4), radius: 12, x: 0, y: 6)
         }
-        .padding(.trailing, 20)
-        .padding(.bottom, 16)
+        .buttonStyle(ScaleButtonStyle())
+        .padding(.trailing, Theme.Spacing.lg)
+        .padding(.bottom, Theme.Spacing.md)
         .accessibilityLabel("Add Expense")
     }
 

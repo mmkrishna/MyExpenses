@@ -14,34 +14,32 @@ struct ExpenseRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: expense.categorySymbol)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(expense.categoryColor)
-                .frame(width: 40, height: 40)
-                .background(expense.categoryColor.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            IconTile(systemName: expense.categorySymbol, tint: expense.categoryColor, size: 40)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 5) {
                     Text(title)
-                        .font(.body.weight(.medium))
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
                     if expense.isRecurring {
                         Image(systemName: "repeat")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.primary)
                             .accessibilityHidden(true)
                     }
                 }
                 Text(expense.date, format: .dateTime.month(.abbreviated).day().year())
-                    .font(.caption)
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: 8)
 
             Text(formattedAmount)
-                .font(.body.weight(.semibold))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.primary)
                 .monospacedDigit()
         }
         .padding(.vertical, 8)

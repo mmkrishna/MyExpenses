@@ -77,7 +77,7 @@ struct AddExpenseView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.background)
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             // Amount uses .decimalPad and Notes is multi-line, so neither keyboard

@@ -56,7 +56,7 @@ struct ReportsView: View {
                     }
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.background)
             .navigationTitle("Reports")
             .navigationBarTitleDisplayMode(.large)
         }

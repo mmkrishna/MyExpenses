@@ -88,7 +88,7 @@ struct DashboardView: View {
                 .padding()
                 .animation(.spring(duration: 0.4), value: recentExpenses)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.background)
             // No nav title: the greeting header serves as the screen's heading.
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $viewModel.showingAddExpense) {
@@ -174,20 +174,14 @@ struct DashboardView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(22)
-        .background(
-            LinearGradient(
-                colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .padding(Theme.Spacing.lg)
+        .background(Theme.ctaGradient)
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: Color.accentColor.opacity(0.35), radius: 16, x: 0, y: 8)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+        .shadow(color: Theme.primary.opacity(0.35), radius: 26, x: 0, y: 12)
     }
 
     private var categoryBreakdownSection: some View {

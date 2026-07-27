@@ -24,6 +24,6 @@ struct LockedView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(Theme.background)
     }
 }

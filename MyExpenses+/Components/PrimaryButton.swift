@@ -26,13 +26,22 @@ struct PrimaryButton: View {
                     .fontWeight(.semibold)
                     .lineLimit(1)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, fullWidth ? 14 : 10)
+            .font(.system(size: 16, weight: .semibold))
+            .padding(.horizontal, 18)
+            .padding(.vertical, fullWidth ? 15 : 10)
             .frame(maxWidth: fullWidth ? .infinity : nil)
-            .background(Capsule().fill(Color.accentColor))
             .foregroundStyle(.white)
+            .background {
+                if fullWidth {
+                    Capsule().fill(Theme.ctaGradient)
+                } else {
+                    Capsule().fill(Color.accentColor)
+                }
+            }
+            .shadow(color: Theme.primary.opacity(fullWidth ? 0.28 : 0),
+                    radius: 12, x: 0, y: 6)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ScaleButtonStyle())
         // Still scales with Dynamic Type, but capped so a compact control can't
         // wrap or dominate its row at accessibility sizes.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
@@ -47,4 +56,5 @@ struct PrimaryButton: View {
         PrimaryButton(title: "Quick Add", systemImage: "plus", fullWidth: true) {}
     }
     .padding()
+    .background(Theme.background)
 }

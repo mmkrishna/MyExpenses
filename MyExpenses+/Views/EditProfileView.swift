@@ -47,7 +47,7 @@ struct EditProfileView: View {
                 Spacer()
             }
             .padding()
-            .background(Color(.systemGroupedBackground))
+            .background(Theme.background)
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
