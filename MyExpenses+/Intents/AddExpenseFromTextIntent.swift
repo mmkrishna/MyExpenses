@@ -15,7 +15,7 @@ struct AddExpenseFromTextIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let result = ExpenseImporter.importExpenses(from: text, into: AppModelContainer.shared.mainContext)
+        let result = try ExpenseImporter.importExpenses(from: text, into: AppModelContainer.shared.mainContext)
 
         guard result.count > 0 else {
             return .result(dialog: "I couldn't find any transactions in that message.")

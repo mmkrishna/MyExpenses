@@ -56,8 +56,9 @@ final class ExpensesViewModel {
         return result
     }
 
-    func delete(_ expense: Expense, context: ModelContext) {
+    func delete(_ expense: Expense, context: ModelContext) throws {
         Haptics.delete()
         context.delete(expense)
+        try context.save()
     }
 }

@@ -11,7 +11,7 @@ enum RecurrenceGenerationService {
         context: ModelContext,
         now: Date = Date(),
         calendar: Calendar = .current
-    ) -> Int {
+    ) throws -> Int {
         let seriesGroups = Dictionary(grouping: expenses.filter { $0.seriesID != nil }) { $0.seriesID! }
         var generatedCount = 0
 
@@ -44,7 +44,7 @@ enum RecurrenceGenerationService {
         }
 
         if generatedCount > 0 {
-            try? context.save()
+            try context.save()
         }
         return generatedCount
     }

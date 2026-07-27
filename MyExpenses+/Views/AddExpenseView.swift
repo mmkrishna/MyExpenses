@@ -9,6 +9,7 @@ struct AddExpenseView: View {
     private var categories: [ExpenseCategory]
     @State private var viewModel: AddEditExpenseViewModel
     @FocusState private var amountFieldFocused: Bool
+    @State private var errorMessage: String?
 
     init(editing expense: Expense? = nil) {
         _viewModel = State(initialValue: AddEditExpenseViewModel(editing: expense))
@@ -103,6 +104,14 @@ struct AddExpenseView: View {
                     amountFieldFocused = true
                 }
             }
+            .alert("Could not save expense", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
         }
     }
 
@@ -136,9 +145,13 @@ struct AddExpenseView: View {
     }
 
     private func save() {
-        guard viewModel.save(context: modelContext) else { return }
-        Haptics.success()
-        dismiss()
+        do {
+            guard try viewModel.save(context: modelContext) else { return }
+            Haptics.success()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 

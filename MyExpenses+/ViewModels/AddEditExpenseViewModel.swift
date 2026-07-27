@@ -42,7 +42,7 @@ final class AddEditExpenseViewModel {
     var navigationTitle: String { isEditing ? "Edit Expense" : "Add Expense" }
 
     var parsedAmount: Decimal? {
-        Decimal(string: amountText.replacingOccurrences(of: ",", with: "."))
+        CurrencyFormatter.decimal(from: amountText)
     }
 
     var canSave: Bool {
@@ -51,7 +51,7 @@ final class AddEditExpenseViewModel {
     }
 
     @discardableResult
-    func save(context: ModelContext) -> Bool {
+    func save(context: ModelContext) throws -> Bool {
         guard let amount = parsedAmount, amount > 0 else { return false }
 
         let expense: Expense
@@ -91,6 +91,7 @@ final class AddEditExpenseViewModel {
             expense.recurrenceEndDate = nil
         }
 
+        try context.save()
         return true
     }
 }

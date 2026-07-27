@@ -15,9 +15,14 @@ enum ExpenseImporter {
     static func importExpenses(
         _ transactions: [ParsedSMSTransaction],
         into context: ModelContext
-    ) -> ExpenseImportResult {
+    ) throws -> ExpenseImportResult {
         var total = Decimal.zero
-        for transaction in transactions {
+        var fingerprints = existingFingerprints(in: context)
+        let newTransactions = transactions.filter { transaction in
+            let fingerprint = fingerprint(for: transaction)
+            return fingerprints.insert(fingerprint).inserted
+        }
+        for transaction in newTransactions {
             // The parser only guesses a name; resolve it to a real category here,
             // which also honours a category the user picked during review.
             let expense = Expense(
@@ -32,11 +37,11 @@ enum ExpenseImporter {
             context.insert(expense)
             total += transaction.amount
         }
-        if !transactions.isEmpty {
-            try? context.save()
+        if !newTransactions.isEmpty {
+            try context.save()
         }
         let currency = transactions.first?.currency ?? CurrencyFormatter.preferredCurrencyCode
-        return ExpenseImportResult(count: transactions.count, total: total, currency: currency)
+        return ExpenseImportResult(count: newTransactions.count, total: total, currency: currency)
     }
 
     /// - Parameter date: stamped on every message found. Defaults to now for
@@ -46,7 +51,38 @@ enum ExpenseImporter {
         from text: String,
         into context: ModelContext,
         date: Date = Date()
-    ) -> ExpenseImportResult {
-        importExpenses(SMSExpenseParser.parse(text, date: date), into: context)
+    ) throws -> ExpenseImportResult {
+        try importExpenses(SMSExpenseParser.parse(text, date: date), into: context)
+    }
+
+    /// SMS messages can be delivered or pasted more than once. Matching on the
+    /// stable transaction details avoids recording the same message twice while
+    /// still allowing the user to review every newly parsed transaction.
+    private static func existingFingerprints(in context: ModelContext) -> Set<String> {
+        let descriptor = FetchDescriptor<Expense>()
+        let existing = (try? context.fetch(descriptor)) ?? []
+        return Set(existing.map { fingerprint(for: $0) })
+    }
+
+    private static func fingerprint(for transaction: ParsedSMSTransaction) -> String {
+        let day = Calendar.current.startOfDay(for: transaction.date).timeIntervalSince1970
+        return [
+            NSDecimalNumber(decimal: transaction.amount).stringValue,
+            transaction.currency.uppercased(),
+            transaction.merchant.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
+            transaction.paymentMethod.rawValue,
+            String(day),
+        ].joined(separator: "|")
+    }
+
+    private static func fingerprint(for expense: Expense) -> String {
+        let day = Calendar.current.startOfDay(for: expense.date).timeIntervalSince1970
+        return [
+            NSDecimalNumber(decimal: expense.amount).stringValue,
+            expense.currency.uppercased(),
+            expense.merchant.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
+            expense.paymentMethod,
+            String(day),
+        ].joined(separator: "|")
     }
 }

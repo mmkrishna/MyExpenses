@@ -25,4 +25,21 @@ enum CurrencyFormatter {
         formatter.currencyCode = currencyCode
         return formatter.string(from: number) ?? number.stringValue
     }
+
+    static func decimal(from text: String, locale: Locale = .current) -> Decimal? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = locale
+        formatter.generatesDecimalNumbers = true
+        if let number = formatter.number(from: trimmed) {
+            return number.decimalValue
+        }
+
+        // Accept a pasted value written in the opposite common convention.
+        let normalized = trimmed.replacingOccurrences(of: ",", with: "")
+        return Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX"))
+    }
 }
