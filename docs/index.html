@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyExpenses+ — Support</title>
+<meta name="description" content="Support and help for MyExpenses+, a simple and private expense tracker for iPhone.">
+<style>
+  :root {
+    --violet: #7B61FF;
+    --violet-2: #9D7BFF;
+    --bg: #F6F5FB;
+    --card: #FFFFFF;
+    --text: #1A1A1F;
+    --muted: #6A6A75;
+    --hairline: rgba(0,0,0,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B0B0F;
+      --card: #1C1C1E;
+      --text: #F2F2F7;
+      --muted: #9A9AA5;
+      --hairline: rgba(255,255,255,0.08);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 22px 64px; }
+  header.hero {
+    background: linear-gradient(135deg, var(--violet), var(--violet-2));
+    color: #fff;
+    text-align: center;
+    padding: 64px 22px 56px;
+  }
+  header.hero img {
+    width: 96px; height: 96px; border-radius: 22px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    margin-bottom: 20px;
+  }
+  header.hero h1 { margin: 0; font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; }
+  header.hero p { margin: 10px 0 0; font-size: 1.05rem; opacity: 0.92; }
+  .card {
+    background: var(--card);
+    border: 0.5px solid var(--hairline);
+    border-radius: 22px;
+    padding: 28px;
+    margin-top: 24px;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.05);
+  }
+  h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+  h3 { font-size: 1.05rem; font-weight: 700; margin: 22px 0 4px; }
+  p, li { color: var(--text); }
+  .muted { color: var(--muted); }
+  a { color: var(--violet); text-decoration: none; font-weight: 600; }
+  a:hover { text-decoration: underline; }
+  .btn {
+    display: inline-block; background: var(--violet); color: #fff;
+    padding: 12px 22px; border-radius: 999px; font-weight: 700; margin-top: 8px;
+  }
+  .btn:hover { text-decoration: none; opacity: 0.92; }
+  .faq h3 { display: flex; gap: 8px; }
+  footer { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 40px; }
+  footer a { margin: 0 10px; }
+</style>
+</head>
+<body>
+  <header class="hero">
+    <img src="icon.png" alt="MyExpenses+ app icon">
+    <h1>MyExpenses+</h1>
+    <p>Simple, private expense tracking for iPhone.</p>
+  </header>
+
+  <div class="wrap">
+    <section class="card">
+      <h2>Support</h2>
+      <p class="muted">Have a question, found a bug, or want to suggest a feature? We'd love to hear from you.</p>
+      <p><a class="btn" href="mailto:muralikrishna.manikyam@gmail.com?subject=MyExpenses%2B%20Support">Email Support</a></p>
+      <p class="muted" style="margin-top:14px">We usually reply within a couple of days. When reporting an issue, it helps to include your iOS version and a short description of what happened.</p>
+    </section>
+
+    <section class="card faq">
+      <h2>Frequently asked questions</h2>
+
+      <h3>Is my financial data private?</h3>
+      <p>Yes. Everything you enter stays on your iPhone. MyExpenses+ has no accounts and no servers — it never uploads your expenses anywhere. See our <a href="privacy.html">Privacy Policy</a> for details.</p>
+
+      <h3>How do I back up or move my data?</h3>
+      <p>Go to <strong>Settings → Backup &amp; Restore → Backup Expenses</strong> to save a backup file you can store in Files or iCloud Drive, then <strong>Restore from Backup</strong> on another device. You can also export to <strong>CSV</strong> or <strong>PDF</strong> from Settings → Export.</p>
+
+      <h3>How does bank SMS import work?</h3>
+      <p>Paste a bank purchase message into <strong>Expenses → Import from SMS</strong> (or use the Shortcut). The app reads the amount, merchant, and card entirely on your device and lets you review each transaction before saving. Nothing is sent off your phone.</p>
+
+      <h3>How do I lock the app with Face ID?</h3>
+      <p>Turn on <strong>Settings → Security → Face ID</strong>. Authentication is handled by iOS; the app never sees your biometric data.</p>
+
+      <h3>Do tips unlock anything?</h3>
+      <p>No — MyExpenses+ is completely free. Tips are an optional, one-time way to support development and unlock nothing.</p>
+
+      <h3>How do I set my currency or budget?</h3>
+      <p>Open <strong>Settings → Currency &amp; Budget</strong> to choose your currency and set an optional monthly budget.</p>
+    </section>
+
+    <footer>
+      <p>
+        <a href="index.html">Support</a> ·
+        <a href="privacy.html">Privacy Policy</a>
+      </p>
+      <p>© 2026 Murali Krishna M</p>
+    </footer>
+  </div>
+</body>
+</html>
