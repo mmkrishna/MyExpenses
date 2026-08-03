@@ -7,21 +7,27 @@ struct ExpenseImportResult {
     var currency: String
 }
 
-/// Turns parsed SMS transactions into stored Expenses. Shared by the in-app
-/// Import from SMS screen and the "Add Expense from Text" App Intent.
+/// Turns parsed SMS transactions into stored Expenses or Incomes.
 enum ExpenseImporter {
-    /// Each transaction carries its own date, so one paste can span several days.
     @discardableResult
     static func importExpenses(
         _ transactions: [ParsedSMSTransaction],
         into context: ModelContext
     ) throws -> ExpenseImportResult {
         var total = Decimal.zero
-        var fingerprints = existingFingerprints(in: context)
-        let newTransactions = transactions.filter { transaction in
-            let fingerprint = fingerprint(for: transaction)
-            return fingerprints.insert(fingerprint).inserted
+        var dbCounts = existingFingerprintCounts(in: context)
+        var newTransactions: [ParsedSMSTransaction] = []
+
+        for transaction in transactions {
+            let fp = fingerprint(for: transaction)
+            let existing = dbCounts[fp, default: 0]
+            if existing > 0 {
+                dbCounts[fp] = existing - 1
+            } else {
+                newTransactions.append(transaction)
+            }
         }
+
         for transaction in newTransactions {
             if transaction.isCredit {
                 let income = Income(
@@ -48,6 +54,7 @@ enum ExpenseImporter {
             }
             total += transaction.amount
         }
+
         if !newTransactions.isEmpty {
             try context.save()
         }
@@ -55,8 +62,6 @@ enum ExpenseImporter {
         return ExpenseImportResult(count: newTransactions.count, total: total, currency: currency)
     }
 
-    /// - Parameter date: stamped on every message found. Defaults to now for
-    ///   callers with no better information (e.g. the Shortcuts intent).
     @discardableResult
     static func importExpenses(
         from text: String,
@@ -66,13 +71,24 @@ enum ExpenseImporter {
         try importExpenses(SMSExpenseParser.parse(text, date: date), into: context)
     }
 
-    /// SMS messages can be delivered or pasted more than once. Matching on the
-    /// stable transaction details avoids recording the same message twice while
-    /// still allowing the user to review every newly parsed transaction.
-    private static func existingFingerprints(in context: ModelContext) -> Set<String> {
-        let descriptor = FetchDescriptor<Expense>()
-        let existing = (try? context.fetch(descriptor)) ?? []
-        return Set(existing.map { fingerprint(for: $0) })
+    private static func existingFingerprintCounts(in context: ModelContext) -> [String: Int] {
+        var counts: [String: Int] = [:]
+
+        let expenseDescriptor = FetchDescriptor<Expense>()
+        let existingExpenses = (try? context.fetch(expenseDescriptor)) ?? []
+        for expense in existingExpenses {
+            let fp = fingerprint(for: expense)
+            counts[fp, default: 0] += 1
+        }
+
+        let incomeDescriptor = FetchDescriptor<Income>()
+        let existingIncomes = (try? context.fetch(incomeDescriptor)) ?? []
+        for income in existingIncomes {
+            let fp = fingerprint(for: income)
+            counts[fp, default: 0] += 1
+        }
+
+        return counts
     }
 
     private static func fingerprint(for transaction: ParsedSMSTransaction) -> String {
@@ -93,6 +109,17 @@ enum ExpenseImporter {
             expense.currency.uppercased(),
             expense.merchant.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
             expense.paymentMethod,
+            String(day),
+        ].joined(separator: "|")
+    }
+
+    private static func fingerprint(for income: Income) -> String {
+        let day = Calendar.current.startOfDay(for: income.date).timeIntervalSince1970
+        return [
+            NSDecimalNumber(decimal: income.amount).stringValue,
+            income.currency.uppercased(),
+            income.payer.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
+            income.paymentMethod,
             String(day),
         ].joined(separator: "|")
     }

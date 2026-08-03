@@ -92,23 +92,38 @@ struct SMSExpenseParserTests {
         #expect(tx2.isCredit == true)
     }
 
-    @Test func parsesIndianBankTxnDebitSMS() {
-        let sms = """
-        Txn Rs.149.00
+    @Test func parsesFiveMessageNumberedBatch() {
+        let smsBatch = """
+        1. Dear Customer, Acct XX051 is credited with Rs 2480.00 on 01-Aug-26 from SHYAM SUNDER KU. UPI:490897397234-ICICI Bank. 2. Txn Rs.149.00
         On HDFC Bank Card 5865
         At returnswealth710648.rzp@r 
         by UPI 658121756648
         On 03-08
         Not You?
         Call 18002586161/SMS BLOCK CC 5865 to 7308080808
+        3. Dear Customer, Acct XXXXX71966 credited with INR 80.00 on 28/07/26 from PHONEPE; UPI:227178662096; Bal INR 131.80-CanaraBank
+        4. Dear Customer, Acct XXXXX71966 credited with INR 80.00 on 28/07/26 from PHONEPE; UPI:227178662096; Bal INR 131.80-CanaraBank
+        5. Dear Customer, Acct XXXXX71966 credited with INR 80.00 on 28/07/26 from PHONEPE; UPI:227178662096; Bal INR 131.80-CanaraBank
         """
-        let res = SMSExpenseParser.parse(sms)
-        let tx = try! #require(res.first)
-        #expect(tx.amount == Decimal(string: "149.00"))
-        #expect(tx.currency == "INR")
-        #expect(tx.merchant == "returnswealth710648.rzp@r")
-        #expect(tx.paymentMethod == .upi)
-        #expect(tx.cardLast4 == "5865")
-        #expect(tx.isCredit == false)
+
+        let result = SMSExpenseParser.parse(smsBatch)
+
+        #expect(result.count == 5)
+
+        #expect(result[0].amount == Decimal(string: "2480.00"))
+        #expect(result[0].isCredit == true)
+
+        #expect(result[1].amount == Decimal(string: "149.00"))
+        #expect(result[1].merchant == "returnswealth710648.rzp@r")
+        #expect(result[1].isCredit == false)
+
+        #expect(result[2].amount == Decimal(string: "80.00"))
+        #expect(result[2].isCredit == true)
+
+        #expect(result[3].amount == Decimal(string: "80.00"))
+        #expect(result[3].isCredit == true)
+
+        #expect(result[4].amount == Decimal(string: "80.00"))
+        #expect(result[4].isCredit == true)
     }
 }

@@ -42,9 +42,7 @@ enum SMSExpenseParser {
     static func parse(_ text: String, date defaultDate: Date = Date()) -> [ParsedSMSTransaction] {
         var results: [ParsedSMSTransaction] = []
 
-        // Split text by double newlines or message boundaries to handle multiple SMS messages in batch
-        let messageBlocks = text.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let blocks = messageBlocks.isEmpty ? [text] : messageBlocks
+        let blocks = splitIntoMessageBlocks(text)
 
         for block in blocks {
             let range = NSRange(block.startIndex..<block.endIndex, in: block)
@@ -142,6 +140,51 @@ enum SMSExpenseParser {
         }
 
         return results
+    }
+
+    // MARK: - Message Splitting
+
+    /// Splits bulk pastes (including numbered lists like "1. ", "2. ", "3. ") into individual SMS messages.
+    private static func splitIntoMessageBlocks(_ rawText: String) -> [String] {
+        let text = rawText.replacingOccurrences(of: "\r\n", with: "\n")
+
+        // Strip numbered list markers ("1. ", "2. ", "3. ", "4. ", "5. ") at line starts or word boundaries
+        let listPattern = #"(?:^|\n|\s)\d+\.\s*"#
+        let unnumbered = text.replacingOccurrences(of: listPattern, with: "\n\n", options: .regularExpression)
+
+        // Split by double newlines first
+        let rawBlocks = unnumbered.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        var blocks: [String] = []
+        let boundaryRegex = try? NSRegularExpression(
+            pattern: #"(?=(?:Dear\s+Customer|Txn\s+|Purchase\s+of))"#,
+            options: [.caseInsensitive]
+        )
+
+        for block in rawBlocks {
+            if let boundaryRegex {
+                let range = NSRange(block.startIndex..<block.endIndex, in: block)
+                let matches = boundaryRegex.matches(in: block, options: [], range: range)
+                if matches.count > 1 {
+                    var lastIndex = block.startIndex
+                    for match in matches {
+                        if let matchRange = Range(match.range, in: block), matchRange.lowerBound > lastIndex {
+                            let sub = String(block[lastIndex..<matchRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !sub.isEmpty { blocks.append(sub) }
+                            lastIndex = matchRange.lowerBound
+                        }
+                    }
+                    let rem = String(block[lastIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !rem.isEmpty { blocks.append(rem) }
+                    continue
+                }
+            }
+            blocks.append(block)
+        }
+
+        return blocks.isEmpty ? [text] : blocks
     }
 
     // MARK: - Helpers
