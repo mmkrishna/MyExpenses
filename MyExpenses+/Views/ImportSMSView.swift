@@ -111,42 +111,54 @@ struct ImportSMSView: View {
 
     private func transactionRow(_ transaction: Binding<ParsedSMSTransaction>) -> some View {
         HStack(spacing: 12) {
+            let isCredit = transaction.wrappedValue.isCredit
             let resolved = category(named: transaction.wrappedValue.categoryName)
-            Image(systemName: resolved?.symbolName ?? BuiltInCategory.fallback.systemImage)
+            let iconName = isCredit ? "arrow.down.left.circle.fill" : (resolved?.symbolName ?? BuiltInCategory.fallback.systemImage)
+            let iconColor = isCredit ? Color.green : (resolved?.color ?? .gray)
+
+            Image(systemName: iconName)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(resolved?.color ?? .gray)
+                .foregroundStyle(iconColor)
                 .frame(width: 38, height: 38)
-                .background((resolved?.color ?? .gray).opacity(0.15))
+                .background(iconColor.opacity(0.15))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            // Merchant and amount share the top line; the two controls get a line
-            // of their own. Fitting all four across one line squeezes the picker
-            // until its title wraps a letter per line.
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
-                    Text(transaction.wrappedValue.merchant)
-                        .font(.body.weight(.medium))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    HStack(spacing: 4) {
+                        Text(transaction.wrappedValue.merchant)
+                            .font(.body.weight(.medium))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        if isCredit {
+                            Text("• Income")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.green)
+                        }
+                    }
 
                     Spacer(minLength: 4)
 
-                    Text(CurrencyFormatter.string(from: transaction.wrappedValue.amount, currencyCode: transaction.wrappedValue.currency))
+                    let amountStr = CurrencyFormatter.string(from: transaction.wrappedValue.amount, currencyCode: transaction.wrappedValue.currency)
+                    Text(isCredit ? "+ " + amountStr : amountStr)
                         .font(.body.weight(.semibold))
+                        .foregroundStyle(isCredit ? .green : .primary)
                         .monospacedDigit()
                         .lineLimit(1)
                         .layoutPriority(1)
                 }
 
                 HStack(spacing: 8) {
-                    Picker("Category", selection: transaction.categoryName) {
-                        ForEach(categories) { category in
-                            Label(category.name, systemImage: category.symbolName).tag(category.name)
+                    if !isCredit {
+                        Picker("Category", selection: transaction.categoryName) {
+                            ForEach(categories) { category in
+                                Label(category.name, systemImage: category.symbolName).tag(category.name)
+                            }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .fixedSize()
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .fixedSize()
 
                     Spacer(minLength: 4)
 

@@ -23,18 +23,29 @@ enum ExpenseImporter {
             return fingerprints.insert(fingerprint).inserted
         }
         for transaction in newTransactions {
-            // The parser only guesses a name; resolve it to a real category here,
-            // which also honours a category the user picked during review.
-            let expense = Expense(
-                amount: transaction.amount,
-                category: CategoryStore.findOrCreate(named: transaction.categoryName, in: context),
-                date: transaction.date,
-                notes: "",
-                paymentMethod: transaction.paymentMethod.rawValue,
-                merchant: transaction.merchant,
-                currency: transaction.currency
-            )
-            context.insert(expense)
+            if transaction.isCredit {
+                let income = Income(
+                    amount: transaction.amount,
+                    sourceName: IncomeSource.allCases.contains(where: { $0.rawValue.lowercased() == transaction.categoryName.lowercased() }) ? transaction.categoryName : "Salary",
+                    payer: transaction.merchant,
+                    date: transaction.date,
+                    notes: "Imported from Bank SMS",
+                    paymentMethod: transaction.paymentMethod.rawValue,
+                    currency: transaction.currency
+                )
+                context.insert(income)
+            } else {
+                let expense = Expense(
+                    amount: transaction.amount,
+                    category: CategoryStore.findOrCreate(named: transaction.categoryName, in: context),
+                    date: transaction.date,
+                    notes: "",
+                    paymentMethod: transaction.paymentMethod.rawValue,
+                    merchant: transaction.merchant,
+                    currency: transaction.currency
+                )
+                context.insert(expense)
+            }
             total += transaction.amount
         }
         if !newTransactions.isEmpty {

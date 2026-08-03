@@ -71,4 +71,44 @@ struct SMSExpenseParserTests {
         #expect(tx.paymentMethod == .creditCard)
         #expect(tx.categoryName == "Travel")
     }
+
+    @Test func parsesIndianBankCreditSMS() {
+        let sms1 = "Dear Customer, Acct XX051 is credited with Rs 2480.00 on 01-Aug-26 from SHYAM SUNDER KU. UPI:490897397234-ICICI Bank."
+        let res1 = SMSExpenseParser.parse(sms1)
+        let tx1 = try! #require(res1.first)
+        #expect(tx1.amount == Decimal(string: "2480.00"))
+        #expect(tx1.currency == "INR")
+        #expect(tx1.merchant == "SHYAM SUNDER KU")
+        #expect(tx1.paymentMethod == .upi)
+        #expect(tx1.isCredit == true)
+
+        let sms2 = "Dear Customer, Acct XXXXX71966 credited with INR 80.00 on 28/07/26 from PHONEPE; UPI:227178662096; Bal INR 131.80-CanaraBank"
+        let res2 = SMSExpenseParser.parse(sms2)
+        let tx2 = try! #require(res2.first)
+        #expect(tx2.amount == Decimal(string: "80.00"))
+        #expect(tx2.currency == "INR")
+        #expect(tx2.merchant == "PHONEPE")
+        #expect(tx2.paymentMethod == .upi)
+        #expect(tx2.isCredit == true)
+    }
+
+    @Test func parsesIndianBankTxnDebitSMS() {
+        let sms = """
+        Txn Rs.149.00
+        On HDFC Bank Card 5865
+        At returnswealth710648.rzp@r 
+        by UPI 658121756648
+        On 03-08
+        Not You?
+        Call 18002586161/SMS BLOCK CC 5865 to 7308080808
+        """
+        let res = SMSExpenseParser.parse(sms)
+        let tx = try! #require(res.first)
+        #expect(tx.amount == Decimal(string: "149.00"))
+        #expect(tx.currency == "INR")
+        #expect(tx.merchant == "returnswealth710648.rzp@r")
+        #expect(tx.paymentMethod == .upi)
+        #expect(tx.cardLast4 == "5865")
+        #expect(tx.isCredit == false)
+    }
 }
