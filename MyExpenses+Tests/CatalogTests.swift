@@ -38,7 +38,7 @@ struct CatalogTests {
         let names = Set(BuiltInCategory.allCases.map(\.rawValue))
         for expected in ["Food", "Coffee", "Grocery", "Fuel", "Transport", "Parking Subscription",
                          "Car License", "Shopping", "Entertainment", "Health", "Bills",
-                         "Insurance", "Rent", "Travel", "Subscription", "Other"] {
+                         "Insurance", "Rent", "Travel", "Subscription", "UPI", "Other"] {
             #expect(names.contains(expected), "missing built-in: \(expected)")
         }
         #expect(names.count == BuiltInCategory.allCases.count) // no duplicate names

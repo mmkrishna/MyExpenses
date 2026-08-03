@@ -8,14 +8,26 @@ enum CategoryStore {
     /// on every launch without duplicating rows.
     @discardableResult
     static func seedBuiltInsIfNeeded(in context: ModelContext) -> Bool {
-        let existing = (try? context.fetchCount(FetchDescriptor<ExpenseCategory>())) ?? 0
-        guard existing == 0 else { return false }
-
-        for (index, builtIn) in BuiltInCategory.allCases.enumerated() {
-            context.insert(builtIn.makeCategory(sortOrder: index))
+        let existing = all(in: context)
+        if existing.isEmpty {
+            for (index, builtIn) in BuiltInCategory.allCases.enumerated() {
+                context.insert(builtIn.makeCategory(sortOrder: index))
+            }
+            try? context.save()
+            return true
+        } else {
+            var addedAny = false
+            for (index, builtIn) in BuiltInCategory.allCases.enumerated() {
+                if !existing.contains(where: { $0.name.lowercased() == builtIn.rawValue.lowercased() }) {
+                    context.insert(builtIn.makeCategory(sortOrder: index))
+                    addedAny = true
+                }
+            }
+            if addedAny {
+                try? context.save()
+            }
+            return addedAny
         }
-        try? context.save()
-        return true
     }
 
     static func all(in context: ModelContext) -> [ExpenseCategory] {

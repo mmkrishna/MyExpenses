@@ -7,6 +7,7 @@ enum PaymentMethod: String, Codable, CaseIterable, Identifiable {
     case debitCard = "Debit Card"
     case bankTransfer = "Bank Transfer"
     case digitalWallet = "Digital Wallet"
+    case upi = "UPI"
     case other = "Other"
 
     var id: String { rawValue }
@@ -19,6 +20,7 @@ enum PaymentMethod: String, Codable, CaseIterable, Identifiable {
         case .debitCard: "creditcard"
         case .bankTransfer: "building.columns.fill"
         case .digitalWallet: "wallet.pass.fill"
+        case .upi: "qrcode"
         case .other: "ellipsis.circle.fill"
         }
     }

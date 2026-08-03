@@ -24,7 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		F6C52EB030078457008B0BF0 /* MyExpenses+.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MyExpenses+.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F6C52EB030078457008B0BF0 /* MyExpenses+.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "MyExpenses+.app"; path = MyExpenses.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F6C52EBF30078459008B0BF0 /* MyExpenses+Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MyExpenses+Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F6C52EC930078459008B0BF0 /* MyExpenses+UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MyExpenses+UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -402,6 +402,7 @@
 				DEVELOPMENT_TEAM = MEYF9J2W24;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "MyExpenses+";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "MyExpenses+ uses Face ID to protect access to your expense data.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -415,7 +416,8 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mmkrishna.myexpenses;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = MyExpenses_;
+				PRODUCT_NAME = MyExpenses;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -436,6 +438,7 @@
 				DEVELOPMENT_TEAM = MEYF9J2W24;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "MyExpenses+";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "MyExpenses+ uses Face ID to protect access to your expense data.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -449,7 +452,8 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mmkrishna.myexpenses;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = MyExpenses_;
+				PRODUCT_NAME = MyExpenses;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;

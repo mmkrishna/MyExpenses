@@ -26,6 +26,7 @@ enum BuiltInCategory: String, CaseIterable, Identifiable {
     case rent = "Rent"
     case travel = "Travel"
     case subscription = "Subscription"
+    case upi = "UPI"
     case other = "Other"
 
     var id: String { rawValue }
@@ -50,6 +51,7 @@ enum BuiltInCategory: String, CaseIterable, Identifiable {
         case .rent: "house.fill"
         case .travel: "airplane"
         case .subscription: "repeat.circle.fill"
+        case .upi: "qrcode"
         case .other: "ellipsis.circle.fill"
         }
     }
@@ -75,6 +77,7 @@ enum BuiltInCategory: String, CaseIterable, Identifiable {
         case .rent: "#5C7099"                 // steel blue
         case .travel: "#32ADE6"               // cyan
         case .subscription: "#30B0C7"         // teal
+        case .upi: "#5F259F"                  // purple / UPI
         case .other: "#8E8E93"                // grey
         }
     }

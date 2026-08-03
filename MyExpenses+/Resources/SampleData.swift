@@ -11,14 +11,30 @@ enum SampleData {
         return container
     }()
 
-    /// Seeds categories, then sample expenses that reference them.
+    /// Seeds categories, then sample expenses and incomes.
     @discardableResult
     static func populate(_ context: ModelContext) -> [Expense] {
         CategoryStore.seedBuiltInsIfNeeded(in: context)
         let expenses = makeExpenses(in: context)
         for expense in expenses { context.insert(expense) }
+        let incomes = makeIncomes()
+        for income in incomes { context.insert(income) }
         try? context.save()
         return expenses
+    }
+
+    static func makeIncomes() -> [Income] {
+        let calendar = Calendar.current
+        let now = Date()
+        func daysAgo(_ days: Int) -> Date {
+            calendar.date(byAdding: .day, value: -days, to: now) ?? now
+        }
+        return [
+            Income(amount: 6500.00, sourceName: IncomeSource.salary.rawValue, payer: "Acme Corp", date: daysAgo(2), notes: "Monthly Salary Transfer", paymentMethod: PaymentMethod.bankTransfer.rawValue),
+            Income(amount: 1200.00, sourceName: IncomeSource.rent.rawValue, payer: "Apartment 3B", date: daysAgo(5), notes: "Monthly Rent Income", paymentMethod: PaymentMethod.bankTransfer.rawValue),
+            Income(amount: 350.00, sourceName: IncomeSource.interest.rawValue, payer: "Savings Account", date: daysAgo(10), notes: "Quarterly Interest", paymentMethod: PaymentMethod.bankTransfer.rawValue),
+            Income(amount: 500.00, sourceName: IncomeSource.custom.rawValue, payer: "Freelance Project", date: daysAgo(15), notes: "Design Consulting", paymentMethod: PaymentMethod.upi.rawValue)
+        ]
     }
 
     static func makeExpenses(in context: ModelContext) -> [Expense] {

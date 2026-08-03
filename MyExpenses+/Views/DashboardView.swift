@@ -8,6 +8,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
+    @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
     @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
     @State private var viewModel = DashboardViewModel()
     @Environment(UserProfileViewModel.self) private var profile
@@ -19,6 +20,18 @@ struct DashboardView: View {
 
     private var todaySpending: Decimal {
         viewModel.todaySpending(expenses)
+    }
+
+    private var monthIncome: Decimal {
+        let calendar = Calendar.current
+        let now = Date()
+        return incomes
+            .filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var netBalance: Decimal {
+        monthIncome - monthSpending
     }
 
     private var remainingBudget: Decimal {
@@ -43,6 +56,21 @@ struct DashboardView: View {
 
                     HStack(spacing: 14) {
                         StatisticCard(
+                            title: "Income",
+                            value: CurrencyFormatter.string(from: monthIncome),
+                            systemImage: "arrow.down.left.circle.fill",
+                            tint: .green
+                        )
+                        StatisticCard(
+                            title: "Net Balance",
+                            value: CurrencyFormatter.string(from: netBalance),
+                            systemImage: "scale.3d",
+                            tint: netBalance >= 0 ? .blue : .red
+                        )
+                    }
+
+                    HStack(spacing: 14) {
+                        StatisticCard(
                             title: "Today",
                             value: CurrencyFormatter.string(from: todaySpending),
                             systemImage: "sun.max.fill",
@@ -52,7 +80,7 @@ struct DashboardView: View {
                             title: "Budget Left",
                             value: remainingBudgetText,
                             systemImage: "wallet.pass.fill",
-                            tint: .green
+                            tint: .purple
                         )
                     }
 

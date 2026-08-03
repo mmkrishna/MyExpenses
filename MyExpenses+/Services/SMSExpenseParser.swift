@@ -94,6 +94,7 @@ enum SMSExpenseParser {
         (.subscription, ["NETFLIX", "SPOTIFY", "OSN", "ANGHAMI", "SUBSCRIPTION", "APPLE.COM", "GOOGLE", "YOUTUBE"]),
         (.travel, ["EMIRATES", "FLYDUBAI", "AIR ARABIA", "BOOKING", "AGODA", "HOTEL", "AIRLINE", "AIRWAYS"]),
         (.bills, ["DEWA", "SEWA", "ETISALAT", "UTILITY"]),
+        (.upi, ["UPI", "GPAY", "PHONEPE", "PAYTM", "BHIM", "CRED"]),
         (.shopping, ["NOON", "AMAZON", "NAMSHI", "IKEA", "MALL", "CENTREPOINT", "UNIQLO", "SHARAF", "H&M", "STORE"]),
     ]
 

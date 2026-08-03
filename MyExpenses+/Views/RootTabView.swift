@@ -15,6 +15,9 @@ struct RootTabView: View {
             Tab("Expenses", systemImage: "list.bullet.rectangle") {
                 ExpensesView()
             }
+            Tab("Income", systemImage: "arrow.down.left.circle") {
+                IncomeView()
+            }
             Tab("Reports", systemImage: "chart.pie") {
                 ReportsView()
             }

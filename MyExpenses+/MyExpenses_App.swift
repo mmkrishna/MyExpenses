@@ -10,7 +10,16 @@ import SwiftData
 
 @main
 struct MyExpenses_App: App {
-    @State private var userProfile = UserProfileViewModel()
+    @State private var userProfile: UserProfileViewModel
+
+    init() {
+        // Screenshot seeding must run before the profile reads its stored name.
+        // Compiled out of Release builds.
+        #if DEBUG
+        ScreenshotData.seedIfRequested()
+        #endif
+        _userProfile = State(initialValue: UserProfileViewModel())
+    }
 
     var body: some Scene {
         WindowGroup {

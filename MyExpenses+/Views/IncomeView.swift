@@ -1,0 +1,201 @@
+import SwiftData
+import SwiftUI
+
+struct IncomeView: View {
+    @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
+    @Environment(\.modelContext) private var modelContext
+
+    @State private var searchText: String = ""
+    @State private var selectedSourceFilter: IncomeSource? = nil
+    @State private var showingAddIncome: Bool = false
+    @State private var incomeToEdit: Income? = nil
+    @State private var errorMessage: String? = nil
+
+    private var calendar: Calendar { Calendar.current }
+
+    private var monthIncomeTotal: Decimal {
+        let now = Date()
+        return incomes
+            .filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var visibleIncomes: [Income] {
+        incomes.filter { income in
+            if let selectedSourceFilter {
+                guard income.source == selectedSourceFilter else { return false }
+            }
+            if !searchText.isEmpty {
+                let query = searchText.lowercased()
+                let matchesPayer = income.payer.lowercased().contains(query)
+                let matchesSource = income.sourceName.lowercased().contains(query)
+                let matchesNotes = income.notes.lowercased().contains(query)
+                guard matchesPayer || matchesSource || matchesNotes else { return false }
+            }
+            return true
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack(alignment: .bottomTrailing) {
+                VStack(spacing: 0) {
+                    summaryHeroCard
+
+                    sourceFilterChips
+                        .padding(.vertical, 8)
+
+                    if incomes.isEmpty {
+                        VStack(spacing: 16) {
+                            Spacer()
+                            EmptyState(message: "No income recorded yet.", systemImage: "tray")
+                            PrimaryButton(title: "Add Income", systemImage: "plus") {
+                                showingAddIncome = true
+                            }
+                            Spacer()
+                        }
+                    } else if visibleIncomes.isEmpty {
+                        VStack {
+                            Spacer()
+                            EmptyState(message: "No income matches your search.", systemImage: "magnifyingglass")
+                            Spacer()
+                        }
+                    } else {
+                        List {
+                            Section {
+                                ForEach(visibleIncomes) { income in
+                                    IncomeRow(income: income)
+                                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                                        .swipeActions(edge: .trailing) {
+                                            Button(role: .destructive) {
+                                                delete(income)
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                            Button {
+                                                incomeToEdit = income
+                                            } label: {
+                                                Label("Edit", systemImage: "pencil")
+                                            }
+                                            .tint(.blue)
+                                        }
+                                }
+                            }
+                            .listRowBackground(Color(.secondarySystemGroupedBackground))
+                        }
+                        .listStyle(.insetGrouped)
+                        .scrollContentBackground(.hidden)
+                        .background(Theme.background)
+                        .animation(.spring(duration: 0.35), value: visibleIncomes)
+                    }
+                }
+
+                if !incomes.isEmpty {
+                    floatingAddButton
+                }
+            }
+            .background(Theme.background)
+            .navigationTitle("Income")
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $searchText, prompt: "Search payer, source, notes")
+            .sheet(isPresented: $showingAddIncome) {
+                AddIncomeView()
+            }
+            .sheet(item: $incomeToEdit) { income in
+                AddIncomeView(editing: income)
+            }
+            .alert("Income Error", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
+        }
+    }
+
+    private var summaryHeroCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.down.left.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("THIS MONTH'S CREDIT")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("+ " + CurrencyFormatter.string(from: monthIncomeTotal))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(.green)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private var sourceFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                IncomeSourceChip(
+                    sourceName: "All",
+                    symbolName: "square.grid.2x2",
+                    color: Theme.primary,
+                    isSelected: selectedSourceFilter == nil
+                ) {
+                    selectedSourceFilter = nil
+                }
+
+                ForEach(IncomeSource.allCases) { source in
+                    IncomeSourceChip(
+                        sourceName: source.rawValue,
+                        symbolName: source.systemImage,
+                        color: source.color,
+                        isSelected: selectedSourceFilter == source
+                    ) {
+                        selectedSourceFilter = source
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    private var floatingAddButton: some View {
+        Button {
+            Haptics.tap()
+            showingAddIncome = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.green)
+                .clipShape(Circle())
+                .shadow(color: Color.green.opacity(0.4), radius: 12, x: 0, y: 6)
+        }
+        .padding(.trailing, 20)
+        .padding(.bottom, 20)
+        .accessibilityLabel("Add Income")
+    }
+
+    private func delete(_ income: Income) {
+        modelContext.delete(income)
+        do {
+            try modelContext.save()
+            Haptics.success()
+        } catch {
+            errorMessage = "Could not delete income record."
+        }
+    }
+}
+
+#Preview {
+    IncomeView()
+        .modelContainer(SampleData.previewContainer)
+}
