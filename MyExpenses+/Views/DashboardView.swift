@@ -120,7 +120,7 @@ struct DashboardView: View {
             // No nav title: the greeting header serves as the screen's heading.
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $viewModel.showingAddExpense) {
-                AddExpenseView()
+                QuickAddView()
             }
             .sheet(isPresented: $showingEditProfile) {
                 EditProfileView()
