@@ -31,9 +31,11 @@ enum SampleData {
         }
         return [
             Income(amount: 6500.00, sourceName: IncomeSource.salary.rawValue, payer: "Acme Corp", date: daysAgo(2), notes: "Monthly Salary Transfer", paymentMethod: PaymentMethod.bankTransfer.rawValue),
+            Income(amount: 2800.00, sourceName: IncomeSource.business.rawValue, payer: "Online Store Sales", date: daysAgo(4), notes: "E-commerce Revenue", paymentMethod: PaymentMethod.digitalWallet.rawValue),
             Income(amount: 1200.00, sourceName: IncomeSource.rent.rawValue, payer: "Apartment 3B", date: daysAgo(5), notes: "Monthly Rent Income", paymentMethod: PaymentMethod.bankTransfer.rawValue),
+            Income(amount: 850.00, sourceName: IncomeSource.stocks.rawValue, payer: "Zerodha / Brokerage", date: daysAgo(8), notes: "Stock Dividend & Capital Gains", paymentMethod: PaymentMethod.upi.rawValue),
             Income(amount: 350.00, sourceName: IncomeSource.interest.rawValue, payer: "Savings Account", date: daysAgo(10), notes: "Quarterly Interest", paymentMethod: PaymentMethod.bankTransfer.rawValue),
-            Income(amount: 500.00, sourceName: IncomeSource.custom.rawValue, payer: "Freelance Project", date: daysAgo(15), notes: "Design Consulting", paymentMethod: PaymentMethod.upi.rawValue)
+            Income(amount: 500.00, sourceName: IncomeSource.freelance.rawValue, payer: "Freelance Project", date: daysAgo(15), notes: "Design Consulting", paymentMethod: PaymentMethod.upi.rawValue)
         ]
     }
 
