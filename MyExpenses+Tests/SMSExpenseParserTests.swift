@@ -174,4 +174,66 @@ struct SMSExpenseParserTests {
         #expect(result[4].categoryName == "Grocery")
         #expect(result[4].isCredit == false)
     }
+
+    /// Numbered markers combined with WhatsApp headers, plus a blank line inside a
+    /// multi-line message (WhatsApp sometimes inserts one after the first line) —
+    /// this exact paste used to return zero transactions.
+    @Test func parsesNumberedWhatsAppExportWithBlankLinesInsideMessages() {
+        let paste = """
+        1. [03/08/2026, 6:32:56 PM] Kapil: Txn Rs.149.00
+
+        On HDFC Bank Card 5865
+        At returnswealth710648.rzp@r
+        by UPI 658121756648
+        On 03-08
+        Not You?
+        Call 18002586161/SMS BLOCK CC 5865 to 7308080808
+
+        2. [03/08/2026, 6:33:19 PM] Kapil: INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60. To dispute, call 18602677777/SMS BLOCK 8022 to 5676757
+        3. [03/08/2026, 6:34:02 PM] Kapil: Dear Customer, Acct XXXXX71966 credited with INR 80.00 on 28/07/26 from PHONEPE; UPI:227178662096; Bal INR 131.80-CanaraBank
+        4. [03/08/2026, 6:35:18 PM] Kapil: Spent INR 20019.64
+
+        Axis Bank Card no. XX9854
+        04-07-26 13:36:19 IST
+        AMAZON PAY
+        Avl Limit: INR 181980.36
+        Not you? SMS BLOCK 9854 to 919951860002
+
+        5. [03/08/2026, 6:35:45 PM] Kapil: Rs.653.95 spent on your SBI Credit Card ending 3140 at BIGBASKET on 09/07/26. Trxn. not done by you? Report at https://sbicard.com/Dispute
+        """
+
+        let result = SMSExpenseParser.parse(paste)
+
+        #expect(result.count == 5)
+        #expect(result[0].merchant == "returnswealth710648.rzp@r")
+        #expect(result[1].merchant == "SWIGGY PVT LTD FOOD2")
+        #expect(result[2].merchant == "PHONEPE")
+        #expect(result[3].merchant == "AMAZON PAY")
+        #expect(result[4].merchant == "BIGBASKET")
+    }
+
+    /// A lazy wildcard on both sides of the optional card-digits group in the
+    /// IndusInd, Axis, and HDFC patterns let the regex engine skip that group
+    /// whenever the rest of the match still succeeded without it, so cardLast4
+    /// came back nil even when the SMS plainly included a card number.
+    @Test func extractsCardLast4ForIndusIndAxisAndHDFCFormats() {
+        let indusInd = "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60."
+        #expect(SMSExpenseParser.parse(indusInd).first?.cardLast4 == "8022")
+
+        let axis = "Spent INR 20019.64\nAxis Bank Card no. XX9854\n04-07-26 13:36:19 IST\nAMAZON PAY\nAvl Limit: INR 181980.36\nNot you? SMS BLOCK 9854 to 919951860002"
+        #expect(SMSExpenseParser.parse(axis).first?.cardLast4 == "9854")
+
+        let hdfc = "Txn Rs.149.00\nOn HDFC Bank Card 5865\nAt returnswealth710648.rzp@r \nby UPI 658121756648\nOn 03-08\nNot You?\nCall 18002586161/SMS BLOCK CC 5865 to 7308080808"
+        #expect(SMSExpenseParser.parse(hdfc).first?.cardLast4 == "5865")
+    }
+
+    /// Same lazy-wildcard issue affected the IndusInd format's transaction date.
+    @Test func extractsDateForIndusIndFormat() {
+        let sms = "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60."
+        let tx = try! #require(SMSExpenseParser.parse(sms).first)
+        let components = Calendar.current.dateComponents([.day, .month, .year], from: tx.date)
+        #expect(components.day == 2)
+        #expect(components.month == 8)
+        #expect(components.year == 2026)
+    }
 }
