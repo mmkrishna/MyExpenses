@@ -8,6 +8,15 @@ enum QuickAddMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// Carries clipboard text into `ImportSMSView`. Presenting via `.sheet(item:)` on
+/// this (rather than `.sheet(isPresented:)` plus a separate text `@State`) makes the
+/// hand-off atomic — otherwise the two state writes can race with the system's
+/// paste-permission alert and the sheet can open before the text propagates.
+private struct SMSImportPayload: Identifiable {
+    let id = UUID()
+    let text: String
+}
+
 struct QuickAddView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -18,6 +27,7 @@ struct QuickAddView: View {
     @FocusState private var amountFieldFocused: Bool
     @State private var errorMessage: String?
     @State private var pasteStatusMessage: String?
+    @State private var smsImportPayload: SMSImportPayload?
 
     // Mode Selector (Default: Expense)
     @State private var mode: QuickAddMode = .expense
@@ -121,6 +131,9 @@ struct QuickAddView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+            .sheet(item: $smsImportPayload) { payload in
+                ImportSMSView(prefilledText: payload.text)
+            }
         }
     }
 
@@ -145,6 +158,8 @@ struct QuickAddView: View {
                     .font(.subheadline.weight(.semibold))
                 Text("Paste from Clipboard")
                     .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
             .foregroundStyle(Theme.primary)
             .padding(.horizontal, 16)
@@ -291,45 +306,16 @@ struct QuickAddView: View {
             withAnimation {
                 pasteStatusMessage = "Clipboard is empty"
             }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation {
+                    pasteStatusMessage = nil
+                }
+            }
             return
         }
 
-        let parsed = SMSExpenseParser.parse(clipboardText)
-        guard let first = parsed.first else {
-            withAnimation {
-                pasteStatusMessage = "No transaction detected in clipboard text"
-            }
-            return
-        }
-
-        withAnimation(.spring(duration: 0.3)) {
-            amountText = NSDecimalNumber(decimal: first.amount).stringValue
-            merchantOrPayer = first.merchant
-            date = first.date
-            paymentMethod = first.paymentMethod
-            if first.isCredit {
-                mode = .income
-                if let match = IncomeSource.allCases.first(where: { $0.rawValue.lowercased() == first.categoryName.lowercased() }) {
-                    selectedIncomeSource = match
-                } else {
-                    selectedIncomeSource = .custom
-                    customSourceName = first.categoryName
-                }
-            } else {
-                mode = .expense
-                if let match = categories.first(where: { $0.name.lowercased() == first.categoryName.lowercased() }) {
-                    selectedCategory = match
-                }
-            }
-            pasteStatusMessage = "Auto-filled from clipboard!"
-        }
-        Haptics.success()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            withAnimation {
-                pasteStatusMessage = nil
-            }
-        }
+        Haptics.tap()
+        smsImportPayload = SMSImportPayload(text: clipboardText)
     }
 
     private func save() {

@@ -33,13 +33,6 @@ struct ImportSMSView: View {
                                     .allowsHitTesting(false)
                             }
                         }
-                    Button {
-                        if let clipboard = UIPasteboard.general.string {
-                            text = clipboard
-                        }
-                    } label: {
-                        Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
-                    }
                 } header: {
                     Text("Paste your bank SMS")
                 } footer: {
