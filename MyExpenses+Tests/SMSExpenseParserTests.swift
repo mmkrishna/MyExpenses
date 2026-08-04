@@ -126,4 +126,17 @@ struct SMSExpenseParserTests {
         #expect(result[4].amount == Decimal(string: "80.00"))
         #expect(result[4].isCredit == true)
     }
+
+    @Test func parsesIndusIndSpentSMS() {
+        let sms = "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60. To dispute, call 18602677777/SMS BLOCK 8022 to 5676757"
+        let result = SMSExpenseParser.parse(sms)
+
+        let tx = try! #require(result.first)
+        #expect(tx.amount == Decimal(string: "272.00"))
+        #expect(tx.currency == "INR")
+        #expect(tx.merchant == "SWIGGY PVT LTD FOOD2")
+        #expect(tx.cardLast4 == "8022")
+        #expect(tx.categoryName == "Food")
+        #expect(tx.isCredit == false)
+    }
 }

@@ -35,9 +35,15 @@ enum SMSExpenseParser {
     private static let indianTxnPattern =
         #"Txn\s+(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)(?:[\s\S]*?)(?:Card\s+(\d{3,4}))?(?:[\s\S]*?)At\s+([^\n;\r]+)"#
 
+    // 4. IndusInd / Spent at Debit Pattern:
+    // "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60."
+    private static let spentPattern =
+        #"(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)\s+spent\s+(?:on|with|at)\s+(?:[A-Za-z0-9_\s]*?Card\s*(?:XX|ending)?\s*(\d{3,4}))?(?:[\s\S]*?)(?:on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4}))?(?:[\s\S]*?)at\s+([^;\.\r\n]+)"#
+
     private static let uaeRegex = try? NSRegularExpression(pattern: uaePattern, options: [.caseInsensitive])
     private static let creditRegex = try? NSRegularExpression(pattern: indianCreditPattern, options: [.caseInsensitive])
     private static let txnRegex = try? NSRegularExpression(pattern: indianTxnPattern, options: [.caseInsensitive])
+    private static let spentRegex = try? NSRegularExpression(pattern: spentPattern, options: [.caseInsensitive])
 
     static func parse(_ text: String, date defaultDate: Date = Date()) -> [ParsedSMSTransaction] {
         var results: [ParsedSMSTransaction] = []
@@ -72,6 +78,36 @@ enum SMSExpenseParser {
                         cardLast4: cardLast4,
                         rawText: block.trimmingCharacters(in: .whitespacesAndNewlines),
                         isCredit: true
+                    ))
+                    continue
+                }
+            }
+
+            // Try Spent Debit match (e.g. "INR 272.00 spent on IndusInd Card XX8022...")
+            if let spentRegex, let match = spentRegex.firstMatch(in: block, options: [], range: range) {
+                let rawCurrency = capture(match, 1, in: block) ?? "INR"
+                let amountString = capture(match, 2, in: block) ?? "0"
+                let cardLast4 = capture(match, 3, in: block)?
+                    .replacingOccurrences(of: "X", with: "", options: .caseInsensitive)
+                let dateString = capture(match, 4, in: block)
+                let merchantRaw = capture(match, 5, in: block) ?? "Merchant"
+
+                if let amount = decimal(from: amountString), amount > 0 {
+                    let currency = normalizeCurrency(rawCurrency)
+                    let merchant = cleanMerchant(merchantRaw)
+                    let txDate = parseDate(dateString, defaultDate: defaultDate)
+                    let paymentMethod = detectPaymentMethod(in: block, defaultCredit: false)
+
+                    results.append(ParsedSMSTransaction(
+                        amount: amount,
+                        currency: currency,
+                        merchant: merchant,
+                        categoryName: guessCategory(for: merchant).rawValue,
+                        date: txDate,
+                        paymentMethod: paymentMethod,
+                        cardLast4: cardLast4,
+                        rawText: block.trimmingCharacters(in: .whitespacesAndNewlines),
+                        isCredit: false
                     ))
                     continue
                 }
@@ -159,7 +195,7 @@ enum SMSExpenseParser {
 
         var blocks: [String] = []
         let boundaryRegex = try? NSRegularExpression(
-            pattern: #"(?=(?:Dear\s+Customer|Txn\s+|Purchase\s+of))"#,
+            pattern: #"(?=(?:Dear\s+Customer|Txn\s+|Purchase\s+of|INR\s+[\d,]+|Rs\.?\s*[\d,]+|Spent\s+))"#,
             options: [.caseInsensitive]
         )
 
@@ -203,7 +239,7 @@ enum SMSExpenseParser {
             return .upi
         } else if upper.contains("CREDIT") || upper.contains("CC") {
             return .creditCard
-        } else if upper.contains("DEBIT") {
+        } else if upper.contains("DEBIT") || upper.contains("CARD") {
             return .debitCard
         } else if defaultCredit {
             return .bankTransfer
@@ -216,7 +252,7 @@ enum SMSExpenseParser {
             return defaultDate
         }
 
-        let formats = ["dd-MMM-yy", "dd-MMM-yyyy", "dd/MM/yy", "dd/MM/yyyy", "dd-MM-yy", "dd-MM-yyyy"]
+        let formats = ["dd-MM-yyyy", "dd/MM/yyyy", "dd-MMM-yy", "dd-MMM-yyyy", "dd/MM/yy", "dd-MM-yy"]
         for format in formats {
             let df = DateFormatter()
             df.dateFormat = format
@@ -266,17 +302,17 @@ enum SMSExpenseParser {
 
     private static let categoryKeywords: [(BuiltInCategory, [String])] = [
         (.coffee, ["COFFEE", "STARBUCKS", "COSTA", "TIM HORTON", "CAFFE", "ARABICA", "BLUE BOTTLE"]),
-        (.food, ["REST", "RESTAURANT", "CAFE", "GRILL", "KITCHEN", "SHAWARMA", "BURGER", "PIZZA", "MCDONALD", "KFC", "SUBWAY", "DINING"]),
-        (.grocery, ["CARREFOUR", "LULU", "SUPERMARKET", "GROCERY", "SPINNEYS", "UNION COOP", "WAITROSE", "AL MAYA", "MART", "HYPERMARKET"]),
+        (.food, ["REST", "RESTAURANT", "CAFE", "GRILL", "KITCHEN", "SHAWARMA", "BURGER", "PIZZA", "MCDONALD", "KFC", "SUBWAY", "DINING", "SWIGGY", "ZOMATO", "FOOD"]),
+        (.grocery, ["CARREFOUR", "LULU", "SUPERMARKET", "GROCERY", "SPINNEYS", "UNION COOP", "WAITROSE", "AL MAYA", "MART", "HYPERMARKET", "ZEPTO", "BLINKIT"]),
         (.fuel, ["ADNOC", "ENOC", "EPPCO", "PETROL", "FUEL"]),
-        (.transport, ["CAREEM", "UBER", "RTA", "METRO", "TAXI", "SALIK", "PARKING"]),
-        (.health, ["PHARMACY", "ASTER", "MEDCARE", "CLINIC", "HOSPITAL", "MEDICAL"]),
+        (.transport, ["CAREEM", "UBER", "RTA", "METRO", "TAXI", "SALIK", "PARKING", "RAPIDO", "NAMASTE"]),
+        (.health, ["PHARMACY", "ASTER", "MEDCARE", "CLINIC", "HOSPITAL", "MEDICAL", "APOLLO", "1MG"]),
         (.insurance, ["INSURANCE", "TAKAFUL", "ASSURANCE"]),
         (.subscription, ["NETFLIX", "SPOTIFY", "OSN", "ANGHAMI", "SUBSCRIPTION", "APPLE.COM", "GOOGLE", "YOUTUBE"]),
-        (.travel, ["EMIRATES", "FLYDUBAI", "AIR ARABIA", "BOOKING", "AGODA", "HOTEL", "AIRLINE", "AIRWAYS"]),
-        (.bills, ["DEWA", "SEWA", "ETISALAT", "UTILITY"]),
+        (.travel, ["EMIRATES", "FLYDUBAI", "AIR ARABIA", "BOOKING", "AGODA", "HOTEL", "AIRLINE", "AIRWAYS", "IRCTC", "MAKEMYTRIP", "INDIGO"]),
+        (.bills, ["DEWA", "SEWA", "ETISALAT", "UTILITY", "AIRTEL", "JIO", "VI"]),
         (.upi, ["UPI", "GPAY", "PHONEPE", "PAYTM", "BHIM", "CRED"]),
-        (.shopping, ["NOON", "AMAZON", "NAMSHI", "IKEA", "MALL", "CENTREPOINT", "UNIQLO", "SHARAF", "H&M", "STORE"]),
+        (.shopping, ["NOON", "AMAZON", "NAMSHI", "IKEA", "MALL", "CENTREPOINT", "UNIQLO", "SHARAF", "H&M", "STORE", "FLIPKART", "MYNTRA"]),
     ]
 
     static func guessCategory(for merchant: String) -> BuiltInCategory {
