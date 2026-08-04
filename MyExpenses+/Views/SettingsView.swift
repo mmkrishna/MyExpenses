@@ -18,6 +18,8 @@ struct SettingsView: View {
     @State private var showingCategories = false
     @State private var tipStore = TipStore()
     @State private var showingThankYou = false
+    @State private var showingDeleteAccount = false
+    @State private var deleteAccountError: String?
 
     // Read from the bundle so the shipped version is always what's shown.
     private var appVersion: String {
@@ -53,6 +55,25 @@ struct SettingsView: View {
             Text("❤️ Support Development")
         } footer: {
             Text("Tips don't unlock anything — the app stays free. Thank you!")
+        }
+    }
+
+    /// Kept visually last and styled destructively. There is no server account to
+    /// close, so this is a full local wipe — the copy says exactly that rather
+    /// than implying something is being deleted from a service.
+    private var deleteAccountSection: some View {
+        Section {
+            Button(role: .destructive) {
+                Haptics.tap()
+                showingDeleteAccount = true
+            } label: {
+                Label("Delete Account", systemImage: "trash")
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Account")
+        } footer: {
+            Text("Permanently erases your expenses, income, custom categories, profile and settings from this device. This cannot be undone — back up first if you want to keep a copy.")
         }
     }
 
@@ -182,7 +203,28 @@ struct SettingsView: View {
                 }
 
                 supportSection
+                deleteAccountSection
                 aboutSection
+            }
+            .confirmationDialog(
+                "Delete your account?",
+                isPresented: $showingDeleteAccount,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Everything", role: .destructive) {
+                    deleteAccount()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Every expense, income record, custom category, your profile and all settings will be erased from this device. This cannot be undone.")
+            }
+            .alert("Could not delete account", isPresented: Binding(
+                get: { deleteAccountError != nil },
+                set: { if !$0 { deleteAccountError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteAccountError ?? "")
             }
             .task { await tipStore.loadProducts() }
             .navigationTitle("Settings")
@@ -235,6 +277,21 @@ struct SettingsView: View {
                 Text(tipStore.errorMessage ?? "")
             }
         }
+    }
+
+    /// Wipes the stored data first, then the preferences. If the store throws,
+    /// the preferences are left alone so the user is not stranded with their
+    /// settings gone but their expenses still there.
+    private func deleteAccount() {
+        do {
+            try AccountEraser.eraseStoredData(in: modelContext)
+        } catch {
+            deleteAccountError = error.localizedDescription
+            return
+        }
+        profile.reset()
+        viewModel.reset()
+        Haptics.success()
     }
 
     private func tip(_ tier: TipStore.Tier) {

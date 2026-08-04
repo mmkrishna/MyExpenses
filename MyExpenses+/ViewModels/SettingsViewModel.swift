@@ -40,6 +40,16 @@ final class SettingsViewModel {
     var biometryName: String { BiometricAuthService.biometryTypeName }
     var biometryAvailable: Bool { BiometricAuthService.isAvailable }
 
+    /// Returns every preference to its just-installed value. Assigning through
+    /// the properties lets their `didSet` clear the stored copies too, so there
+    /// is no second list of keys to keep in step.
+    func reset() {
+        currencyCode = Locale.current.currency?.identifier ?? "USD"
+        monthlyBudget = 0
+        appearance = .system
+        faceIDEnabled = false
+    }
+
     @MainActor
     func toggleFaceID(_ enabled: Bool) async {
         guard enabled, biometryAvailable else {

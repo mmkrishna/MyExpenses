@@ -19,6 +19,14 @@ final class UserProfileViewModel {
         photoData = defaults.data(forKey: "userProfilePhotoData")
     }
 
+    /// Returns the profile to its just-installed state. Assigning through the
+    /// properties lets their `didSet` clear the stored copies too, so there is no
+    /// second list of keys to keep in step.
+    func reset() {
+        name = ""
+        photoData = nil
+    }
+
     var hasName: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var displayName: String { hasName ? name : "Welcome" }
