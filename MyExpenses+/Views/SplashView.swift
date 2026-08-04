@@ -150,6 +150,21 @@ struct SplashView: View {
             }
 
         }
+        // Matches LaunchScreen.storyboard's label — same string, 12pt system, white
+        // at 75%, centred 24pt above the safe area — so the credit does not shift or
+        // restyle as the static launch screen hands over to this one.
+        //
+        // Anchored to the GeometryReader rather than the ZStack inside it: the
+        // background image is scaledToFill, so it overflows and leaves the ZStack
+        // taller than the screen, which puts a .bottom-aligned overlay off-screen.
+        .overlay(alignment: .bottom) {
+
+            Text("© 2026 Murali Krishna M")
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.75))
+                .padding(.bottom, 24)
+
+        }
         .onAppear {
 
             startAnimation()
