@@ -21,6 +21,17 @@ final class ExpensesViewModel {
     var smsImportPayload: SMSImportPayload?
     var expenseToEdit: Expense?
 
+    /// Rows ticked while the list is in selection mode.
+    var selection: Set<UUID> = []
+    var isSelecting = false
+    var confirmingBulkDelete = false
+
+    /// Leaves selection mode and drops any ticks, so re-entering starts clean.
+    func endSelecting() {
+        isSelecting = false
+        selection.removeAll()
+    }
+
     func availableMonths(in expenses: [Expense], calendar: Calendar = .current) -> [Date] {
         let months = Set(expenses.map { calendar.dateInterval(of: .month, for: $0.date)?.start ?? $0.date })
         return months.sorted(by: >)
@@ -60,5 +71,18 @@ final class ExpensesViewModel {
         Haptics.delete()
         context.delete(expense)
         try context.save()
+    }
+
+    /// Deletes every selected expense in one save, so a failure part-way cannot
+    /// leave some rows gone and others not.
+    func deleteSelected(from expenses: [Expense], context: ModelContext) throws {
+        let doomed = expenses.filter { selection.contains($0.id) }
+        guard !doomed.isEmpty else { return }
+        Haptics.delete()
+        for expense in doomed {
+            context.delete(expense)
+        }
+        try context.save()
+        selection.removeAll()
     }
 }

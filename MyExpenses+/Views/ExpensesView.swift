@@ -36,10 +36,11 @@ struct ExpensesView: View {
                             Spacer()
                         }
                     } else {
-                        List {
+                        List(selection: $viewModel.selection) {
                             Section {
                                 ForEach(visibleExpenses) { expense in
                                     ExpenseRow(expense: expense)
+                                        .tag(expense.id)
                                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                                         .swipeActions(edge: .trailing) {
                                             Button(role: .destructive) {
@@ -66,12 +67,14 @@ struct ExpensesView: View {
                         .scrollContentBackground(.hidden)
                         .background(Theme.background)
                         .animation(.spring(duration: 0.35), value: visibleExpenses)
+                        .environment(\.editMode, .constant(viewModel.isSelecting ? .active : .inactive))
                     }
                 }
 
-                // The empty state has its own "Add Expense" button, so the
-                // floating one only appears once there are expenses to sit above.
-                if !expenses.isEmpty {
+                // The empty state has its own "Add Expense" button, and the floating
+                // one would sit on top of the selection toolbar, so it stays hidden
+                // while picking rows.
+                if !expenses.isEmpty && !viewModel.isSelecting {
                     addButton
                 }
             }
@@ -79,21 +82,62 @@ struct ExpensesView: View {
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $viewModel.searchText, prompt: "Search merchant, notes, category")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    monthFilterMenu
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Haptics.tap()
-                        viewModel.smsImportPayload = SMSImportPayload(text: UIPasteboard.general.string ?? "")
-                    } label: {
-                        Image(systemName: "envelope.badge")
+                if viewModel.isSelecting {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Delete\(viewModel.selection.isEmpty ? "" : " (\(viewModel.selection.count))")", role: .destructive) {
+                            viewModel.confirmingBulkDelete = true
+                        }
+                        .tint(.red)
+                        .disabled(viewModel.selection.isEmpty)
                     }
-                    .accessibilityLabel("Import from SMS")
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") {
+                            withAnimation { viewModel.endSelecting() }
+                        }
+                        .fontWeight(.semibold)
+                    }
+                } else {
+                    ToolbarItem(placement: .topBarLeading) {
+                        monthFilterMenu
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            Haptics.tap()
+                            viewModel.smsImportPayload = SMSImportPayload(text: UIPasteboard.general.string ?? "")
+                        } label: {
+                            Image(systemName: "envelope.badge")
+                        }
+                        .accessibilityLabel("Import from SMS")
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        sortMenu
+                    }
+                    // Nothing to pick from until there are rows.
+                    if !visibleExpenses.isEmpty {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Select") {
+                                withAnimation { viewModel.isSelecting = true }
+                            }
+                        }
+                    }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    sortMenu
+            }
+            .confirmationDialog(
+                "Delete \(viewModel.selection.count) expense\(viewModel.selection.count == 1 ? "" : "s")?",
+                isPresented: $viewModel.confirmingBulkDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    do {
+                        try viewModel.deleteSelected(from: expenses, context: modelContext)
+                        withAnimation { viewModel.endSelecting() }
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
                 }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone.")
             }
             .sheet(isPresented: $viewModel.showingAddExpense) {
                 AddExpenseView()

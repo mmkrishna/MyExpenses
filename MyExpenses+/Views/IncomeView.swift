@@ -11,6 +11,11 @@ struct IncomeView: View {
     @State private var incomeToEdit: Income? = nil
     @State private var errorMessage: String? = nil
 
+    /// Rows ticked while the list is in selection mode.
+    @State private var selection: Set<UUID> = []
+    @State private var isSelecting = false
+    @State private var confirmingBulkDelete = false
+
     private var calendar: Calendar { Calendar.current }
 
     private var monthIncomeTotal: Decimal {
@@ -61,10 +66,11 @@ struct IncomeView: View {
                             Spacer()
                         }
                     } else {
-                        List {
+                        List(selection: $selection) {
                             Section {
                                 ForEach(visibleIncomes) { income in
                                     IncomeRow(income: income)
+                                        .tag(income.id)
                                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                                         .swipeActions(edge: .trailing) {
                                             Button(role: .destructive) {
@@ -87,10 +93,13 @@ struct IncomeView: View {
                         .scrollContentBackground(.hidden)
                         .background(Theme.background)
                         .animation(.spring(duration: 0.35), value: visibleIncomes)
+                        .environment(\.editMode, .constant(isSelecting ? .active : .inactive))
                     }
                 }
 
-                if !incomes.isEmpty {
+                // Hidden while picking rows so it cannot sit on top of the
+                // selection toolbar.
+                if !incomes.isEmpty && !isSelecting {
                     floatingAddButton
                 }
             }
@@ -98,6 +107,42 @@ struct IncomeView: View {
             .navigationTitle("Income")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search payer, source, notes")
+            .toolbar {
+                if isSelecting {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Delete\(selection.isEmpty ? "" : " (\(selection.count))")", role: .destructive) {
+                            confirmingBulkDelete = true
+                        }
+                        .tint(.red)
+                        .disabled(selection.isEmpty)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") {
+                            withAnimation { endSelecting() }
+                        }
+                        .fontWeight(.semibold)
+                    }
+                } else if !visibleIncomes.isEmpty {
+                    // Nothing to pick from until there are rows.
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Select") {
+                            withAnimation { isSelecting = true }
+                        }
+                    }
+                }
+            }
+            .confirmationDialog(
+                "Delete \(selection.count) income record\(selection.count == 1 ? "" : "s")?",
+                isPresented: $confirmingBulkDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    deleteSelected()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone.")
+            }
             .sheet(isPresented: $showingAddIncome) {
                 AddIncomeView()
             }
@@ -191,6 +236,29 @@ struct IncomeView: View {
             Haptics.success()
         } catch {
             errorMessage = "Could not delete income record."
+        }
+    }
+
+    /// Leaves selection mode and drops any ticks, so re-entering starts clean.
+    private func endSelecting() {
+        isSelecting = false
+        selection.removeAll()
+    }
+
+    /// Deletes every selected record in one save, so a failure part-way cannot
+    /// leave some rows gone and others not.
+    private func deleteSelected() {
+        let doomed = incomes.filter { selection.contains($0.id) }
+        guard !doomed.isEmpty else { return }
+        for income in doomed {
+            modelContext.delete(income)
+        }
+        do {
+            try modelContext.save()
+            Haptics.success()
+            withAnimation { endSelecting() }
+        } catch {
+            errorMessage = "Could not delete the selected income records."
         }
     }
 }
