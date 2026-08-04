@@ -122,8 +122,10 @@ struct QuickAddView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+            // Quick Add is only a waypoint on the paste route, so a completed
+            // import closes it too and lands the user back on the Dashboard.
             .sheet(item: $smsImportPayload) { payload in
-                ImportSMSView(prefilledText: payload.text)
+                ImportSMSView(prefilledText: payload.text) { dismiss() }
             }
         }
     }

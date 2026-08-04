@@ -14,9 +14,15 @@ struct ImportSMSView: View {
     /// batch spanning several days still files correctly.
     @State private var date = Date()
     @State private var errorMessage: String?
+    /// Runs instead of `dismiss()` after a successful import, letting a presenter
+    /// that is itself a sheet close the whole stack. Quick Add uses it to drop the
+    /// user back on the Dashboard rather than the form they were passing through.
+    /// Presenting from a tab root wants the plain dismiss, so this stays nil there.
+    private let onImported: (() -> Void)?
 
-    init(prefilledText: String = "") {
+    init(prefilledText: String = "", onImported: (() -> Void)? = nil) {
         _text = State(initialValue: prefilledText)
+        self.onImported = onImported
     }
 
     var body: some View {
@@ -182,7 +188,14 @@ struct ImportSMSView: View {
                 return
             }
             Haptics.success()
-            dismiss()
+            // Dismissing here as well as in the handler would race: the presenter's
+            // own dismissal already takes this sheet down with it, and the second
+            // request lands mid-animation and is dropped.
+            if let onImported {
+                onImported()
+            } else {
+                dismiss()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
