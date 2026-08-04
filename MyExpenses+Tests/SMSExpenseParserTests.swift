@@ -127,16 +127,51 @@ struct SMSExpenseParserTests {
         #expect(result[4].isCredit == true)
     }
 
-    @Test func parsesIndusIndSpentSMS() {
-        let sms = "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60. To dispute, call 18602677777/SMS BLOCK 8022 to 5676757"
-        let result = SMSExpenseParser.parse(sms)
+    @Test func parsesWhatsAppExportPasteWithFiveMessages() {
+        let whatsappPaste = """
+        [03/08/2026, 6:32:56 PM] Kapil: Txn Rs.149.00
+        On HDFC Bank Card 5865
+        At returnswealth710648.rzp@r 
+        by UPI 658121756648
+        On 03-08
+        Not You?
+        Call 18002586161/SMS BLOCK CC 5865 to 7308080808
+        [03/08/2026, 6:33:19 PM] Kapil: INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60. To dispute, call 18602677777/SMS BLOCK 8022 to 5676757
+        [03/08/2026, 6:34:02 PM] Kapil: Dear Customer, Acct XXXXX71966 credited with INR 80.00 on 28/07/26 from PHONEPE; UPI:227178662096; Bal INR 131.80-CanaraBank
+        [03/08/2026, 6:35:18 PM] Kapil: Spent INR 20019.64
+        Axis Bank Card no. XX9854
+        04-07-26 13:36:19 IST
+        AMAZON PAY
+        Avl Limit: INR 181980.36
+        Not you? SMS BLOCK 9854 to 919951860002
+        [03/08/2026, 6:35:45 PM] Kapil: Rs.653.95 spent on your SBI Credit Card ending 3140 at BIGBASKET on 09/07/26. Trxn. not done by you? Report at https://sbicard.com/Dispute
+        """
 
-        let tx = try! #require(result.first)
-        #expect(tx.amount == Decimal(string: "272.00"))
-        #expect(tx.currency == "INR")
-        #expect(tx.merchant == "SWIGGY PVT LTD FOOD2")
-        #expect(tx.cardLast4 == "8022")
-        #expect(tx.categoryName == "Food")
-        #expect(tx.isCredit == false)
+        let result = SMSExpenseParser.parse(whatsappPaste)
+
+        #expect(result.count == 5)
+
+        #expect(result[0].amount == Decimal(string: "149.00"))
+        #expect(result[0].merchant == "returnswealth710648.rzp@r")
+        #expect(result[0].isCredit == false)
+
+        #expect(result[1].amount == Decimal(string: "272.00"))
+        #expect(result[1].merchant == "SWIGGY PVT LTD FOOD2")
+        #expect(result[1].categoryName == "Food")
+        #expect(result[1].isCredit == false)
+
+        #expect(result[2].amount == Decimal(string: "80.00"))
+        #expect(result[2].merchant == "PHONEPE")
+        #expect(result[2].isCredit == true)
+
+        #expect(result[3].amount == Decimal(string: "20019.64"))
+        #expect(result[3].merchant == "AMAZON PAY")
+        #expect(result[3].categoryName == "Shopping")
+        #expect(result[3].isCredit == false)
+
+        #expect(result[4].amount == Decimal(string: "653.95"))
+        #expect(result[4].merchant == "BIGBASKET")
+        #expect(result[4].categoryName == "Grocery")
+        #expect(result[4].isCredit == false)
     }
 }

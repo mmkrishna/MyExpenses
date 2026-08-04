@@ -35,15 +35,27 @@ enum SMSExpenseParser {
     private static let indianTxnPattern =
         #"Txn\s+(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)(?:[\s\S]*?)(?:Card\s+(\d{3,4}))?(?:[\s\S]*?)At\s+([^\n;\r]+)"#
 
-    // 4. IndusInd / Spent at Debit Pattern:
+    // 4. IndusInd / Spent on... at... Debit Pattern:
     // "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60."
-    private static let spentPattern =
-        #"(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)\s+spent\s+(?:on|with|at)\s+(?:[A-Za-z0-9_\s]*?Card\s*(?:XX|ending)?\s*(\d{3,4}))?(?:[\s\S]*?)(?:on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4}))?(?:[\s\S]*?)at\s+([^;\.\r\n]+)"#
+    private static let spentPattern1 =
+        #"(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)\s+spent\s+on\s+(?:your\s+)?([A-Za-z0-9_\s]*?Card\s*(?:XX|ending|no\.?)?\s*(\d{3,4}))?(?:[\s\S]*?)(?:on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4}))?(?:[\s\S]*?)at\s+([^;\.\r\n]+)"#
+
+    // 5. SBI / Spent at... on... Debit Pattern:
+    // "Rs.653.95 spent on your SBI Credit Card ending 3140 at BIGBASKET on 09/07/26."
+    private static let spentPattern2 =
+        #"(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)\s+spent\s+on\s+(?:your\s+)?([A-Za-z0-9_\s]*?Card\s*(?:XX|ending|no\.?)?\s*(\d{3,4}))?\s+at\s+([^\.\n;\r]+?)\s+on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4})"#
+
+    // 6. Axis / Multi-line Spent Pattern:
+    // "Spent INR 20019.64\nAxis Bank Card no. XX9854\n04-07-26 13:36:19 IST\nAMAZON PAY\nAvl Limit..."
+    private static let spentPattern3 =
+        #"Spent\s+(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)(?:[\s\S]*?)(?:Card(?:\s*no\.?)?\s*(?:XX|ending)?\s*(\d{3,4}))?(?:[\s\S]*?)(\d{2}[-\/]\d{2}[-\/]\d{2,4})(?:[\s\S]*?)\n([A-Z0-9\s]+?)(?:\n|\r|Avl|Not|To|\.|$)"#
 
     private static let uaeRegex = try? NSRegularExpression(pattern: uaePattern, options: [.caseInsensitive])
     private static let creditRegex = try? NSRegularExpression(pattern: indianCreditPattern, options: [.caseInsensitive])
     private static let txnRegex = try? NSRegularExpression(pattern: indianTxnPattern, options: [.caseInsensitive])
-    private static let spentRegex = try? NSRegularExpression(pattern: spentPattern, options: [.caseInsensitive])
+    private static let spentRegex1 = try? NSRegularExpression(pattern: spentPattern1, options: [.caseInsensitive])
+    private static let spentRegex2 = try? NSRegularExpression(pattern: spentPattern2, options: [.caseInsensitive])
+    private static let spentRegex3 = try? NSRegularExpression(pattern: spentPattern3, options: [.caseInsensitive])
 
     static func parse(_ text: String, date defaultDate: Date = Date()) -> [ParsedSMSTransaction] {
         var results: [ParsedSMSTransaction] = []
@@ -53,7 +65,7 @@ enum SMSExpenseParser {
         for block in blocks {
             let range = NSRange(block.startIndex..<block.endIndex, in: block)
 
-            // Try Indian Credit match
+            // 1. Try Indian Credit match
             if let creditRegex, let match = creditRegex.firstMatch(in: block, options: [], range: range) {
                 let cardLast4 = capture(match, 1, in: block)?
                     .replacingOccurrences(of: "X", with: "", options: .caseInsensitive)
@@ -83,12 +95,40 @@ enum SMSExpenseParser {
                 }
             }
 
-            // Try Spent Debit match (e.g. "INR 272.00 spent on IndusInd Card XX8022...")
-            if let spentRegex, let match = spentRegex.firstMatch(in: block, options: [], range: range) {
+            // 2. Try SBI / Spent at... on... match
+            if let spentRegex2, let match = spentRegex2.firstMatch(in: block, options: [], range: range) {
                 let rawCurrency = capture(match, 1, in: block) ?? "INR"
                 let amountString = capture(match, 2, in: block) ?? "0"
-                let cardLast4 = capture(match, 3, in: block)?
-                    .replacingOccurrences(of: "X", with: "", options: .caseInsensitive)
+                let cardLast4 = extractCardLast4(from: capture(match, 3, in: block))
+                let merchantRaw = capture(match, 4, in: block) ?? "Merchant"
+                let dateString = capture(match, 5, in: block)
+
+                if let amount = decimal(from: amountString), amount > 0 {
+                    let currency = normalizeCurrency(rawCurrency)
+                    let merchant = cleanMerchant(merchantRaw)
+                    let txDate = parseDate(dateString, defaultDate: defaultDate)
+                    let paymentMethod = detectPaymentMethod(in: block, defaultCredit: false)
+
+                    results.append(ParsedSMSTransaction(
+                        amount: amount,
+                        currency: currency,
+                        merchant: merchant,
+                        categoryName: guessCategory(for: merchant).rawValue,
+                        date: txDate,
+                        paymentMethod: paymentMethod,
+                        cardLast4: cardLast4,
+                        rawText: block.trimmingCharacters(in: .whitespacesAndNewlines),
+                        isCredit: false
+                    ))
+                    continue
+                }
+            }
+
+            // 3. Try Spent on... at... match (IndusInd)
+            if let spentRegex1, let match = spentRegex1.firstMatch(in: block, options: [], range: range) {
+                let rawCurrency = capture(match, 1, in: block) ?? "INR"
+                let amountString = capture(match, 2, in: block) ?? "0"
+                let cardLast4 = extractCardLast4(from: capture(match, 3, in: block))
                 let dateString = capture(match, 4, in: block)
                 let merchantRaw = capture(match, 5, in: block) ?? "Merchant"
 
@@ -113,7 +153,36 @@ enum SMSExpenseParser {
                 }
             }
 
-            // Try Indian Txn / Debit match
+            // 4. Try Axis / Multi-line Spent match
+            if let spentRegex3, let match = spentRegex3.firstMatch(in: block, options: [], range: range) {
+                let rawCurrency = capture(match, 1, in: block) ?? "INR"
+                let amountString = capture(match, 2, in: block) ?? "0"
+                let cardLast4 = capture(match, 3, in: block)
+                let dateString = capture(match, 4, in: block)
+                let merchantRaw = capture(match, 5, in: block) ?? "Merchant"
+
+                if let amount = decimal(from: amountString), amount > 0 {
+                    let currency = normalizeCurrency(rawCurrency)
+                    let merchant = cleanMerchant(merchantRaw)
+                    let txDate = parseDate(dateString, defaultDate: defaultDate)
+                    let paymentMethod = detectPaymentMethod(in: block, defaultCredit: false)
+
+                    results.append(ParsedSMSTransaction(
+                        amount: amount,
+                        currency: currency,
+                        merchant: merchant,
+                        categoryName: guessCategory(for: merchant).rawValue,
+                        date: txDate,
+                        paymentMethod: paymentMethod,
+                        cardLast4: cardLast4,
+                        rawText: block.trimmingCharacters(in: .whitespacesAndNewlines),
+                        isCredit: false
+                    ))
+                    continue
+                }
+            }
+
+            // 5. Try Indian Txn / Debit match
             if let txnRegex, let match = txnRegex.firstMatch(in: block, options: [], range: range) {
                 let rawCurrency = capture(match, 1, in: block) ?? "INR"
                 let amountString = capture(match, 2, in: block) ?? "0"
@@ -147,7 +216,7 @@ enum SMSExpenseParser {
                 }
             }
 
-            // Try UAE / Standard Purchase match
+            // 6. Try UAE / Standard Purchase match
             if let uaeRegex {
                 let matches = uaeRegex.matches(in: block, options: [], range: range)
                 for match in matches {
@@ -178,18 +247,25 @@ enum SMSExpenseParser {
         return results
     }
 
-    // MARK: - Message Splitting
+    // MARK: - Message Splitting & Sanitization
 
-    /// Splits bulk pastes (including numbered lists like "1. ", "2. ", "3. ") into individual SMS messages.
+    /// Splits bulk pastes (including WhatsApp / iMessage exports and numbered lists) into individual SMS messages.
     private static func splitIntoMessageBlocks(_ rawText: String) -> [String] {
-        let text = rawText.replacingOccurrences(of: "\r\n", with: "\n")
+        var text = rawText.replacingOccurrences(of: "\r\n", with: "\n")
 
-        // Strip numbered list markers ("1. ", "2. ", "3. ", "4. ", "5. ") at line starts or word boundaries
+        // 1. Strip WhatsApp/iMessage chat export headers like "[03/08/2026, 6:32:56 PM] Kapil: " or "03/08/2026, 6:32 PM - Sender: "
+        let chatHeaderPattern = #"(?:^|\n)\[[^\]]+\]\s*[^:\n]*:\s*"#
+        text = text.replacingOccurrences(of: chatHeaderPattern, with: "\n\n", options: .regularExpression)
+
+        let chatHeaderPattern2 = #"(?:^|\n)\d{1,2}/\d{1,2}/\d{2,4},?\s*\d{1,2}:\d{2}\s*(?:[AP]M|[ap]m)?\s*-\s*[^:\n]*:\s*"#
+        text = text.replacingOccurrences(of: chatHeaderPattern2, with: "\n\n", options: .regularExpression)
+
+        // 2. Strip numbered list markers ("1. ", "2. ", "3. ", "4. ", "5. ") at line starts or word boundaries
         let listPattern = #"(?:^|\n|\s)\d+\.\s*"#
-        let unnumbered = text.replacingOccurrences(of: listPattern, with: "\n\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: listPattern, with: "\n\n", options: .regularExpression)
 
         // Split by double newlines first
-        let rawBlocks = unnumbered.components(separatedBy: "\n\n")
+        let rawBlocks = text.components(separatedBy: "\n\n")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
@@ -225,6 +301,15 @@ enum SMSExpenseParser {
 
     // MARK: - Helpers
 
+    private static func extractCardLast4(from text: String?) -> String? {
+        guard let text else { return nil }
+        let digits = text.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()
+        if digits.count >= 4 {
+            return String(digits.suffix(4))
+        }
+        return digits.isEmpty ? nil : digits
+    }
+
     private static func normalizeCurrency(_ raw: String) -> String {
         let upper = raw.uppercased().replacingOccurrences(of: ".", with: "")
         if upper == "RS" || upper == "INR" {
@@ -252,7 +337,7 @@ enum SMSExpenseParser {
             return defaultDate
         }
 
-        let formats = ["dd-MM-yyyy", "dd/MM/yyyy", "dd-MMM-yy", "dd-MMM-yyyy", "dd/MM/yy", "dd-MM-yy"]
+        let formats = ["dd-MM-yyyy", "dd/MM/yyyy", "dd-MM-yy", "dd/MM/yy", "dd-MMM-yy", "dd-MMM-yyyy"]
         for format in formats {
             let df = DateFormatter()
             df.dateFormat = format
@@ -303,7 +388,7 @@ enum SMSExpenseParser {
     private static let categoryKeywords: [(BuiltInCategory, [String])] = [
         (.coffee, ["COFFEE", "STARBUCKS", "COSTA", "TIM HORTON", "CAFFE", "ARABICA", "BLUE BOTTLE"]),
         (.food, ["REST", "RESTAURANT", "CAFE", "GRILL", "KITCHEN", "SHAWARMA", "BURGER", "PIZZA", "MCDONALD", "KFC", "SUBWAY", "DINING", "SWIGGY", "ZOMATO", "FOOD"]),
-        (.grocery, ["CARREFOUR", "LULU", "SUPERMARKET", "GROCERY", "SPINNEYS", "UNION COOP", "WAITROSE", "AL MAYA", "MART", "HYPERMARKET", "ZEPTO", "BLINKIT"]),
+        (.grocery, ["CARREFOUR", "LULU", "SUPERMARKET", "GROCERY", "SPINNEYS", "UNION COOP", "WAITROSE", "AL MAYA", "MART", "HYPERMARKET", "ZEPTO", "BLINKIT", "BIGBASKET", "GROFERS"]),
         (.fuel, ["ADNOC", "ENOC", "EPPCO", "PETROL", "FUEL"]),
         (.transport, ["CAREEM", "UBER", "RTA", "METRO", "TAXI", "SALIK", "PARKING", "RAPIDO", "NAMASTE"]),
         (.health, ["PHARMACY", "ASTER", "MEDCARE", "CLINIC", "HOSPITAL", "MEDICAL", "APOLLO", "1MG"]),
