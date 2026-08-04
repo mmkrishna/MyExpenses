@@ -18,7 +18,7 @@ final class ExpensesViewModel {
     var sortOption: ExpenseSortOption = .dateDescending
 
     var showingAddExpense = false
-    var showingImportSMS = false
+    var smsImportPayload: SMSImportPayload?
     var expenseToEdit: Expense?
 
     func availableMonths(in expenses: [Expense], calendar: Calendar = .current) -> [Date] {

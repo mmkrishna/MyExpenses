@@ -227,6 +227,49 @@ struct SMSExpenseParserTests {
         #expect(SMSExpenseParser.parse(hdfc).first?.cardLast4 == "5865")
     }
 
+    /// DateFormatter's custom `dateFormat` patterns are lenient about separators and
+    /// digit counts even with isLenient = false: "dd-MM-yyyy" (first in the format
+    /// list) happily "matched" a 2-digit year like "26" and produced year 26 AD,
+    /// and the loop returned on that first apparent match before ever reaching
+    /// "dd/MM/yy". Every 2-digit-year date — which is most Indian bank SMS —
+    /// landed two millennia in the past. Amount and merchant were right, so the
+    /// record showed in its list while every month-scoped total silently skipped
+    /// it. Credits and debits were both affected, since they share this parser.
+    @Test func twoDigitYearDatesParseToTheCorrectCentury() {
+        // Credit (Canara) — the reported symptom: missing from the Income total.
+        let credit = "Dear Customer, Acct XXXXX71966 credited with INR 500.00 on 04/08/26 from TESTPAYER; UPI:227178662096; Bal INR 1131.80-CanaraBank"
+        let creditTx = try! #require(SMSExpenseParser.parse(credit).first)
+        var components = Calendar.current.dateComponents([.day, .month, .year], from: creditTx.date)
+        #expect(components.year == 2026)
+        #expect(components.month == 8)
+        #expect(components.day == 4)
+
+        // Debit (SBI) — same root cause, so imported spending was dropped from
+        // the Dashboard's current-month figure too.
+        let debit = "Rs.653.95 spent on your SBI Credit Card ending 3140 at BIGBASKET on 09/07/26."
+        let debitTx = try! #require(SMSExpenseParser.parse(debit).first)
+        components = Calendar.current.dateComponents([.day, .month, .year], from: debitTx.date)
+        #expect(components.year == 2026)
+        #expect(components.month == 7)
+        #expect(components.day == 9)
+
+        // Debit (Axis) — dd-MM-yy with dashes rather than slashes.
+        let axis = "Spent INR 20019.64\nAxis Bank Card no. XX9854\n04-07-26 13:36:19 IST\nAMAZON PAY\nAvl Limit: INR 181980.36"
+        let axisTx = try! #require(SMSExpenseParser.parse(axis).first)
+        components = Calendar.current.dateComponents([.day, .month, .year], from: axisTx.date)
+        #expect(components.year == 2026)
+        #expect(components.month == 7)
+        #expect(components.day == 4)
+
+        // Credit (ICICI) — dd-MMM-yy, the named-month variant.
+        let icici = "Dear Customer, Acct XX051 is credited with Rs 2480.00 on 01-Aug-26 from SHYAM SUNDER KU. UPI:490897397234-ICICI Bank."
+        let iciciTx = try! #require(SMSExpenseParser.parse(icici).first)
+        components = Calendar.current.dateComponents([.day, .month, .year], from: iciciTx.date)
+        #expect(components.year == 2026)
+        #expect(components.month == 8)
+        #expect(components.day == 1)
+    }
+
     /// Same lazy-wildcard issue affected the IndusInd format's transaction date.
     @Test func extractsDateForIndusIndFormat() {
         let sms = "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD FOOD2. Avl Lmt: INR 104,421.60."

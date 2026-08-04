@@ -8,15 +8,6 @@ enum QuickAddMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Carries clipboard text into `ImportSMSView`. Presenting via `.sheet(item:)` on
-/// this (rather than `.sheet(isPresented:)` plus a separate text `@State`) makes the
-/// hand-off atomic — otherwise the two state writes can race with the system's
-/// paste-permission alert and the sheet can open before the text propagates.
-private struct SMSImportPayload: Identifiable {
-    let id = UUID()
-    let text: String
-}
-
 struct QuickAddView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

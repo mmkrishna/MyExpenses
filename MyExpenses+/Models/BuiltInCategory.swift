@@ -31,8 +31,9 @@ enum BuiltInCategory: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// The category every expense falls back to.
-    static let fallback: BuiltInCategory = .other
+    /// The category every expense falls back to. `nonisolated` so the SMS parser,
+    /// which is pure text processing and deliberately off the main actor, can name it.
+    nonisolated static let fallback: BuiltInCategory = .other
 
     var systemImage: String {
         switch self {

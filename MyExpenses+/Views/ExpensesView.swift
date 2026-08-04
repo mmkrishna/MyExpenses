@@ -85,7 +85,7 @@ struct ExpensesView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Haptics.tap()
-                        viewModel.showingImportSMS = true
+                        viewModel.smsImportPayload = SMSImportPayload(text: UIPasteboard.general.string ?? "")
                     } label: {
                         Image(systemName: "envelope.badge")
                     }
@@ -98,8 +98,8 @@ struct ExpensesView: View {
             .sheet(isPresented: $viewModel.showingAddExpense) {
                 AddExpenseView()
             }
-            .sheet(isPresented: $viewModel.showingImportSMS) {
-                ImportSMSView()
+            .sheet(item: $viewModel.smsImportPayload) { payload in
+                ImportSMSView(prefilledText: payload.text)
             }
             .sheet(item: $viewModel.expenseToEdit) { expense in
                 AddExpenseView(editing: expense)

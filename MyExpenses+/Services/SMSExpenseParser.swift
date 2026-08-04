@@ -8,7 +8,7 @@ import Foundation
 // MARK: - Parsed Transaction
 
 /// A transaction extracted from a bank SMS, ready to become an Expense or Income after review.
-struct ParsedSMSTransaction: Identifiable {
+nonisolated struct ParsedSMSTransaction: Identifiable {
     let id = UUID()
     var amount: Decimal
     var currency: String
@@ -33,7 +33,7 @@ struct ParsedSMSTransaction: Identifiable {
 /// parsing happens in two stages: `MessageSplitter` first breaks the paste into
 /// individual SMS bodies, then each body is handed to `FormatCatalog`, which tries
 /// each known bank format in turn until one matches.
-enum SMSExpenseParser {
+nonisolated enum SMSExpenseParser {
     static func parse(_ text: String, date defaultDate: Date = Date()) -> [ParsedSMSTransaction] {
         MessageSplitter.split(text).compactMap { message in
             FormatCatalog.parse(message, defaultDate: defaultDate)
@@ -59,7 +59,7 @@ enum SMSExpenseParser {
 ///    transaction concatenated with no marker at all (e.g. several UAE purchase
 ///    sentences pasted back to back), looks for the handful of phrases that start a
 ///    bank SMS ("Txn ", "Purchase of", ...) and splits there instead.
-private enum MessageSplitter {
+private nonisolated enum MessageSplitter {
     static func split(_ rawText: String) -> [String] {
         let normalized = rawText
             .replacingOccurrences(of: "\r\n", with: "\n")
@@ -147,7 +147,7 @@ private enum MessageSplitter {
 
 /// Every supported bank SMS format, tried in order against a single, already-isolated
 /// message. The first one that matches wins. To support a new bank, add a case here.
-private enum FormatCatalog {
+private nonisolated enum FormatCatalog {
     static let all: [(String, Date) -> ParsedSMSTransaction?] = [
         IndianCreditFormat.parse,
         SBISpentFormat.parse,
@@ -172,7 +172,7 @@ private enum FormatCatalog {
 // KU. UPI:490897397234-ICICI Bank."
 // "Dear Customer, Acct XXXXX71966 credited with INR 80.00 on 28/07/26 from PHONEPE;
 // UPI:227178662096; Bal INR 131.80-CanaraBank"
-private enum IndianCreditFormat {
+private nonisolated enum IndianCreditFormat {
     private static let regex = try? NSRegularExpression(
         pattern: #"(?:Acct|A/c)\s+([A-Za-z0-9_]+)?\s*(?:is\s+)?credited\s+with\s+(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)(?:\s+on\s+([^\s;\.,]+))?\s+from\s+([^;\.\r\n]+)"#,
         options: [.caseInsensitive]
@@ -206,7 +206,7 @@ private enum IndianCreditFormat {
 
 // MARK: - SBI / "Spent at ... on ..." (amount leads, date trails)
 // "Rs.653.95 spent on your SBI Credit Card ending 3140 at BIGBASKET on 09/07/26."
-private enum SBISpentFormat {
+private nonisolated enum SBISpentFormat {
     private static let regex = try? NSRegularExpression(
         pattern: #"(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)\s+spent\s+on\s+(?:your\s+)?([A-Za-z0-9_\s]*?Card\s*(?:XX|ending|no\.?)?\s*(\d{3,4}))?\s+at\s+([^\.\n;\r]+?)\s+on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4})"#,
         options: [.caseInsensitive]
@@ -237,7 +237,7 @@ private enum SBISpentFormat {
 // MARK: - IndusInd / "<amount> spent on ... at ..." (amount leads, date mid-message)
 // "INR 272.00 spent on IndusInd Card XX8022 on 02-08-2026 07:06:45 pm at SWIGGY PVT LTD
 // FOOD2. Avl Lmt: INR 104,421.60."
-private enum IndusIndSpentFormat {
+private nonisolated enum IndusIndSpentFormat {
     private static let regex = try? NSRegularExpression(
         pattern: #"(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)\s+spent\s+on\s+(?:your\s+)?([A-Za-z0-9_\s]*?Card\s*(?:XX|ending|no\.?)?\s*(\d{3,4}))?(?:[\s\S]*?)(?:on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4}))?(?:[\s\S]*?)at\s+([^;\.\r\n]+)"#,
         options: [.caseInsensitive]
@@ -284,7 +284,7 @@ private enum IndusIndSpentFormat {
 // MARK: - Axis / multi-line "Spent <amount>"
 // "Spent INR 20019.64\nAxis Bank Card no. XX9854\n04-07-26 13:36:19 IST\nAMAZON PAY\nAvl
 // Limit: INR 181980.36"
-private enum AxisSpentFormat {
+private nonisolated enum AxisSpentFormat {
     private static let regex = try? NSRegularExpression(
         pattern: #"Spent\s+(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)(?:[\s\S]*?)(?:Card(?:\s*no\.?)?\s*(?:XX|ending)?\s*(\d{3,4}))?(?:[\s\S]*?)(\d{2}[-\/]\d{2}[-\/]\d{2,4})(?:[\s\S]*?)\n([A-Z0-9\s]+?)(?:\n|\r|Avl|Not|To|\.|$)"#,
         options: [.caseInsensitive]
@@ -328,7 +328,7 @@ private enum AxisSpentFormat {
 // MARK: - Indian Txn / Debit (HDFC-style)
 // "Txn Rs.149.00\nOn HDFC Bank Card 5865\nAt returnswealth710648.rzp@r \nby UPI
 // 658121756648\nOn 03-08"
-private enum TxnDebitFormat {
+private nonisolated enum TxnDebitFormat {
     private static let regex = try? NSRegularExpression(
         pattern: #"Txn\s+(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)(?:[\s\S]*?)(?:Card\s+(\d{3,4}))?(?:[\s\S]*?)At\s+([^\n;\r]+)"#,
         options: [.caseInsensitive]
@@ -381,7 +381,7 @@ private enum TxnDebitFormat {
 // MARK: - UAE / Standard Purchase
 // "Purchase of AED 42.93 with Debit Card ending 0807 at Noon, 80038888. Avl Balance is
 // AED 2,407.30."
-private enum UAEPurchaseFormat {
+private nonisolated enum UAEPurchaseFormat {
     private static let regex = try? NSRegularExpression(
         pattern: #"Purchase of\s+([A-Za-z]{3})\s+([\d,]+(?:\.\d{1,2})?)\s+with\s+(Debit|Credit)\s+Card(?:\s+ending\s+(\d{3,4}))?\s+at\s+(.+?)(?:\.\s*Avl\b|\.\s*Available\b|$)"#,
         options: [.caseInsensitive]
@@ -412,7 +412,7 @@ private enum UAEPurchaseFormat {
 
 // MARK: - Shared Parsing Helpers
 
-private enum ParsingHelpers {
+private nonisolated enum ParsingHelpers {
     static func firstMatch(_ regex: NSRegularExpression, in text: String) -> NSTextCheckingResult? {
         regex.firstMatch(in: text, range: NSRange(text.startIndex..<text.endIndex, in: text))
     }
@@ -472,7 +472,15 @@ private enum ParsingHelpers {
             let formatter = DateFormatter()
             formatter.dateFormat = format
             formatter.locale = Locale(identifier: "en_US_POSIX")
-            if let date = formatter.date(from: dateStr) {
+            // DateFormatter's custom dateFormat patterns are surprisingly lenient
+            // about separators and digit counts even with isLenient = false: a
+            // "yyyy" pattern will happily accept "26" from "04/08/26" and produce
+            // year 26 AD instead of failing, so a wrong-but-earlier format in the
+            // list can silently win over the correct one. Reject anything that
+            // couldn't plausibly be a bank SMS date rather than trusting the first
+            // "successful" parse.
+            if let date = formatter.date(from: dateStr),
+               Calendar.current.component(.year, from: date) >= 1900 {
                 return date
             }
         }
@@ -492,7 +500,7 @@ private enum ParsingHelpers {
 
 // MARK: - Merchant Categorization
 
-private enum MerchantCategorizer {
+private nonisolated enum MerchantCategorizer {
     private static let keywordsByCategory: [(BuiltInCategory, [String])] = [
         (.coffee, ["COFFEE", "STARBUCKS", "COSTA", "TIM HORTON", "CAFFE", "ARABICA", "BLUE BOTTLE"]),
         (.food, ["REST", "RESTAURANT", "CAFE", "GRILL", "KITCHEN", "SHAWARMA", "BURGER", "PIZZA", "MCDONALD", "KFC", "SUBWAY", "DINING", "SWIGGY", "ZOMATO", "FOOD"]),
