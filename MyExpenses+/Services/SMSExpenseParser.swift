@@ -62,6 +62,10 @@ nonisolated enum SMSExpenseParser {
 private nonisolated enum MessageSplitter {
     static func split(_ rawText: String) -> [String] {
         let normalized = rawText
+            .replacingOccurrences(of: "\u{200E}", with: "")
+            .replacingOccurrences(of: "\u{200F}", with: "")
+            .replacingOccurrences(of: "\u{200B}", with: "")
+            .replacingOccurrences(of: "\u{FEFF}", with: "")
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
 
@@ -120,7 +124,7 @@ private nonisolated enum MessageSplitter {
     /// since that also matches secondary mentions like "Avl Lmt: INR 104,421.60" and
     /// would fracture a single message into unparsable pieces.
     private static let messageStartRegex = try? NSRegularExpression(
-        pattern: #"(?=Dear\s+Customer\b)|(?=Txn\s)|(?=Purchase\s+of\b)|(?=Spent\s+(?:INR|Rs\.?|[A-Za-z]{3})\b)|(?=(?:INR|Rs\.?)\s*[\d,]+(?:\.\d{1,2})?\s+spent\b)"#,
+        pattern: #"(?:^|\n|\.\s+)(Dear\s+Customer\b|Txn\s|Purchase\s+of\b|Credit\s+Card\s+Purchase\b|Debit\s+Card\s+Purchase\b|Card\s+Purchase\b|(?:A\s+)?(?:Cr\.?|Dr\.?)\s+(?:trx|txn|transaction)\b|(?:[A-Za-z]{3}|Rs\.?|INR)\s*[\d,]+(?:\.\d{1,2})?\s+transferred\b|Your\s+(?:Cr\.?|Credit|Debit)?\s*Card\b|(?:Trx\.?|Txn\.?|Transaction)\s+of\b|Spent\s+(?:INR|Rs\.?|[A-Za-z]{3})\b|(?:INR|Rs\.?)\s*[\d,]+(?:\.\d{1,2})?\s+spent\b)"#,
         options: [.caseInsensitive]
     )
 
@@ -128,10 +132,22 @@ private nonisolated enum MessageSplitter {
         guard let messageStartRegex else { return [envelope] }
 
         let range = NSRange(envelope.startIndex..<envelope.endIndex, in: envelope)
-        let starts = messageStartRegex.matches(in: envelope, range: range)
-            .compactMap { Range($0.range, in: envelope)?.lowerBound }
+        let matches = messageStartRegex.matches(in: envelope, range: range)
 
-        guard starts.count > 1 else { return [envelope] }
+        guard !matches.isEmpty else { return [envelope] }
+
+        var starts: [String.Index] = []
+        for match in matches {
+            if match.numberOfRanges > 1, let r = Range(match.range(at: 1), in: envelope) {
+                starts.append(r.lowerBound)
+            } else if let r = Range(match.range(at: 0), in: envelope) {
+                starts.append(r.lowerBound)
+            }
+        }
+
+        if starts.first != envelope.startIndex {
+            starts.insert(envelope.startIndex, at: 0)
+        }
 
         var pieces: [String] = []
         for (index, start) in starts.enumerated() {
@@ -155,6 +171,11 @@ private nonisolated enum FormatCatalog {
         AxisSpentFormat.parse,
         TxnDebitFormat.parse,
         UAEPurchaseFormat.parse,
+        KeyValuePurchaseFormat.parse,
+        AccountCrDrFormat.parse,
+        BankTransferFormat.parse,
+        CardUsedFormat.parse,
+        TrxApprovedFormat.parse,
     ]
 
     static func parse(_ message: String, defaultDate: Date) -> ParsedSMSTransaction? {
@@ -242,10 +263,6 @@ private nonisolated enum IndusIndSpentFormat {
         pattern: #"(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)\s+spent\s+on\s+(?:your\s+)?([A-Za-z0-9_\s]*?Card\s*(?:XX|ending|no\.?)?\s*(\d{3,4}))?(?:[\s\S]*?)(?:on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4}))?(?:[\s\S]*?)at\s+([^;\.\r\n]+)"#,
         options: [.caseInsensitive]
     )
-    // Pulled separately rather than from the main pattern's group 5: the lazy
-    // `[\s\S]*?` wildcards flanking that optional group let the engine skip it
-    // whenever the rest of the pattern can still succeed without it — which, with
-    // a merchant field always present after, is every time.
     private static let inlineDateRegex = try? NSRegularExpression(
         pattern: #"\bon\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}|\d{2}[-\/][A-Za-z]{3}[-\/]\d{2,4})"#,
         options: [.caseInsensitive]
@@ -257,8 +274,6 @@ private nonisolated enum IndusIndSpentFormat {
               amount > 0
         else { return nil }
 
-        // Groups: 1=currency 2=amount 3="...Card XX8022" 4=card digits 5=date 6=merchant
-        // (group 3 wraps 4, which shifts everything after it up by one).
         let merchant = ParsingHelpers.cleanMerchant(ParsingHelpers.capture(match, 6, in: message) ?? "Merchant")
 
         var date = defaultDate
@@ -289,10 +304,6 @@ private nonisolated enum AxisSpentFormat {
         pattern: #"Spent\s+(Rs\.?|INR|[A-Za-z]{3})\s*([\d,]+(?:\.\d{1,2})?)(?:[\s\S]*?)(?:Card(?:\s*no\.?)?\s*(?:XX|ending)?\s*(\d{3,4}))?(?:[\s\S]*?)(\d{2}[-\/]\d{2}[-\/]\d{2,4})(?:[\s\S]*?)\n([A-Z0-9\s]+?)(?:\n|\r|Avl|Not|To|\.|$)"#,
         options: [.caseInsensitive]
     )
-    // Pulled separately rather than from the main pattern's group 3, for the same
-    // reason as TxnDebitFormat's cardDigitsRegex: flanking lazy wildcards make the
-    // engine skip that optional group whenever the rest of the pattern can succeed
-    // without it.
     private static let cardDigitsRegex = try? NSRegularExpression(
         pattern: #"Card(?:\s*no\.?)?\s*(?:XX|ending)?\s*(\d{3,4})"#,
         options: [.caseInsensitive]
@@ -337,9 +348,6 @@ private nonisolated enum TxnDebitFormat {
         pattern: #"On\s+(\d{2}[-\/]\d{2}(?:[-\/]\d{2,4})?)"#,
         options: [.caseInsensitive]
     )
-    // Pulled separately rather than from the main pattern's group 3: a lazy `[\s\S]*?`
-    // sits on both sides of that optional group, so the engine always prefers
-    // skipping it over matching it once the rest of the pattern can succeed without it.
     private static let cardDigitsRegex = try? NSRegularExpression(
         pattern: #"Card\s+(\d{3,4})"#,
         options: [.caseInsensitive]
@@ -410,6 +418,228 @@ private nonisolated enum UAEPurchaseFormat {
     }
 }
 
+// MARK: - Key-Value Purchase
+// "Credit Card Purchase\nCard Ending: 1013\nAt: HOOKAH PANI STAR CAFE, DUBAI\nAmount: AED 110.00\nDate: 02/08/2026, 22:54\nAvailable Limit: AED 17,899.46"
+private nonisolated enum KeyValuePurchaseFormat {
+    private static let amountRegex = try? NSRegularExpression(
+        pattern: #"Amount:\s*([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)"#,
+        options: [.caseInsensitive]
+    )
+    private static let merchantRegex = try? NSRegularExpression(
+        pattern: #"At:\s*([^\n\r]+)"#,
+        options: [.caseInsensitive]
+    )
+    private static let cardEndingRegex = try? NSRegularExpression(
+        pattern: #"Card\s+Ending:\s*([A-Za-z0-9\*]+)"#,
+        options: [.caseInsensitive]
+    )
+    private static let dateRegex = try? NSRegularExpression(
+        pattern: #"Date:\s*([^\n\r]+)"#,
+        options: [.caseInsensitive]
+    )
+
+    static func parse(_ message: String, defaultDate: Date) -> ParsedSMSTransaction? {
+        guard message.localizedCaseInsensitiveContains("Card Purchase") || message.localizedCaseInsensitiveContains("Amount:"),
+              let amountRegex, let amountMatch = ParsingHelpers.firstMatch(amountRegex, in: message),
+              let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(amountMatch, 2, in: message) ?? "0"),
+              amount > 0,
+              let merchantRegex, let merchantMatch = ParsingHelpers.firstMatch(merchantRegex, in: message)
+        else { return nil }
+
+        let currency = ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(amountMatch, 1, in: message) ?? "AED")
+        let rawMerchant = ParsingHelpers.capture(merchantMatch, 1, in: message) ?? "Merchant"
+        let merchant = ParsingHelpers.cleanMerchant(rawMerchant)
+
+        var cardLast4: String?
+        if let cardEndingRegex, let cardMatch = ParsingHelpers.firstMatch(cardEndingRegex, in: message) {
+            cardLast4 = ParsingHelpers.extractCardLast4(from: ParsingHelpers.capture(cardMatch, 1, in: message))
+        }
+
+        var date = defaultDate
+        if let dateRegex, let dateMatch = ParsingHelpers.firstMatch(dateRegex, in: message),
+           let dateStr = ParsingHelpers.capture(dateMatch, 1, in: message) {
+            date = ParsingHelpers.parseDate(dateStr, defaultDate: defaultDate)
+        }
+
+        let isCreditCard = message.localizedCaseInsensitiveContains("Credit")
+
+        return ParsedSMSTransaction(
+            amount: amount,
+            currency: currency,
+            merchant: merchant,
+            categoryName: MerchantCategorizer.category(for: merchant).rawValue,
+            date: date,
+            paymentMethod: isCreditCard ? .creditCard : .debitCard,
+            cardLast4: cardLast4,
+            rawText: message,
+            isCredit: false
+        )
+    }
+}
+
+// MARK: - Account Cr/Dr Transaction
+// "A Cr. transaction of AED 37.25 on your account number XXX820001 was successful.Available balance is 2970.45."
+// "A Dr. transaction of AED 200.00 on your account number XXX820001 was successful.Available balance is 2770.45."
+private nonisolated enum AccountCrDrFormat {
+    private static let regex = try? NSRegularExpression(
+        pattern: #"(?:A\s+)?(Cr\.?|Dr\.?|Credit|Debit)\s+(?:trx|txn|transaction)\s+of\s+([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)\s+on\s+(?:your\s+)?(?:account|acc\.?|a/c)\s*(?:number|no\.?)?\s*([A-Za-z0-9_\*]+)"#,
+        options: [.caseInsensitive]
+    )
+
+    static func parse(_ message: String, defaultDate: Date) -> ParsedSMSTransaction? {
+        guard let regex, let match = ParsingHelpers.firstMatch(regex, in: message),
+              let typeStr = ParsingHelpers.capture(match, 1, in: message),
+              let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(match, 3, in: message) ?? "0"),
+              amount > 0
+        else { return nil }
+
+        let isCredit = typeStr.localizedCaseInsensitiveContains("Cr") || typeStr.localizedCaseInsensitiveContains("Credit")
+        let currency = ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(match, 2, in: message) ?? "AED")
+        let accNumber = ParsingHelpers.capture(match, 4, in: message)
+        let merchant = isCredit ? "Account Credit" : "Account Debit"
+
+        return ParsedSMSTransaction(
+            amount: amount,
+            currency: currency,
+            merchant: merchant,
+            categoryName: MerchantCategorizer.category(for: merchant).rawValue,
+            date: defaultDate,
+            paymentMethod: .bankTransfer,
+            cardLast4: ParsingHelpers.extractCardLast4(from: accNumber),
+            rawText: message,
+            isCredit: isCredit
+        )
+    }
+}
+
+// MARK: - Bank Transfer (ADCB style)
+// "AED850.00 transferred via ADCB Personal Internet Banking / Mobile App from acc. no. XXX820001 on Aug  4 2026  7:52AM. Avl. bal. AED 2933.20."
+private nonisolated enum BankTransferFormat {
+    private static let regex = try? NSRegularExpression(
+        pattern: #"([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)\s+transferred\s+via\s+([^\n\r]+?)\s+from\s+acc\.\s*no\.\s*([A-Za-z0-9_\*]+)(?:\s+on\s+([^\.\n;\r]+))?"#,
+        options: [.caseInsensitive]
+    )
+    private static let dateExtractRegex = try? NSRegularExpression(
+        pattern: #"([A-Za-z]{3}\s+\d{1,2}\s+\d{4}|\d{2}[-\/]\d{2}[-\/]\d{2,4})"#,
+        options: [.caseInsensitive]
+    )
+
+    static func parse(_ message: String, defaultDate: Date) -> ParsedSMSTransaction? {
+        guard let regex, let match = ParsingHelpers.firstMatch(regex, in: message),
+              let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(match, 2, in: message) ?? "0"),
+              amount > 0
+        else { return nil }
+
+        let currency = ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(match, 1, in: message) ?? "AED")
+        let rawMerchant = ParsingHelpers.capture(match, 3, in: message) ?? "Bank Transfer"
+        let merchant = ParsingHelpers.cleanMerchant(rawMerchant)
+        let accNumber = ParsingHelpers.capture(match, 4, in: message)
+
+        var date = defaultDate
+        if let rawDateStr = ParsingHelpers.capture(match, 5, in: message) {
+            if let dateExtractRegex, let dateMatch = ParsingHelpers.firstMatch(dateExtractRegex, in: rawDateStr),
+               let extractedDateStr = ParsingHelpers.capture(dateMatch, 1, in: rawDateStr) {
+                date = ParsingHelpers.parseDate(extractedDateStr, defaultDate: defaultDate)
+            } else {
+                date = ParsingHelpers.parseDate(rawDateStr, defaultDate: defaultDate)
+            }
+        }
+
+        return ParsedSMSTransaction(
+            amount: amount,
+            currency: currency,
+            merchant: merchant,
+            categoryName: MerchantCategorizer.category(for: merchant).rawValue,
+            date: date,
+            paymentMethod: .bankTransfer,
+            cardLast4: ParsingHelpers.extractCardLast4(from: accNumber),
+            rawText: message,
+            isCredit: false
+        )
+    }
+}
+
+// MARK: - Card Used Format
+// "Your Cr.Card XXX6212 was used for AED2942.00 on 03/08/2026 10:16:47 at ZURICH INTL. LIFE LT,DUBAI-AE. Avl. Cr.limit is AED5783.69"
+private nonisolated enum CardUsedFormat {
+    private static let regex = try? NSRegularExpression(
+        pattern: #"Your\s+(?:Cr\.?\s*)?Card\s+([A-Za-z0-9_\*]+)\s+was\s+used\s+for\s+([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)(?:\s+on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}(?:\s+\d{2}:\d{2}:\d{2})?))?\s+at\s+([^;\.\r\n]+)"#,
+        options: [.caseInsensitive]
+    )
+
+    static func parse(_ message: String, defaultDate: Date) -> ParsedSMSTransaction? {
+        guard let regex, let match = ParsingHelpers.firstMatch(regex, in: message),
+              let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(match, 3, in: message) ?? "0"),
+              amount > 0
+        else { return nil }
+
+        let cardStr = ParsingHelpers.capture(match, 1, in: message)
+        let currency = ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(match, 2, in: message) ?? "AED")
+        let dateStr = ParsingHelpers.capture(match, 4, in: message)
+        let rawMerchant = ParsingHelpers.capture(match, 5, in: message) ?? "Merchant"
+        let merchant = ParsingHelpers.cleanMerchant(rawMerchant)
+
+        let isCreditCard = message.localizedCaseInsensitiveContains("Cr")
+
+        return ParsedSMSTransaction(
+            amount: amount,
+            currency: currency,
+            merchant: merchant,
+            categoryName: MerchantCategorizer.category(for: merchant).rawValue,
+            date: ParsingHelpers.parseDate(dateStr, defaultDate: defaultDate),
+            paymentMethod: isCreditCard ? .creditCard : .debitCard,
+            cardLast4: ParsingHelpers.extractCardLast4(from: cardStr),
+            rawText: message,
+            isCredit: false
+        )
+    }
+}
+
+// MARK: - Trx Approved Format
+// "Trx. of AED80.00 on your card ending *429 at SWABI LAUNDRY L.L.C, UAE is Approved. Avl. card bal is 19502.90. Trx Date: 04/08/26 16:45"
+private nonisolated enum TrxApprovedFormat {
+    private static let regex = try? NSRegularExpression(
+        pattern: #"(?:Trx\.?|Txn\.?|Transaction)\s+of\s+([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)\s+on\s+(?:your\s+)?card(?:\s+ending)?\s*([A-Za-z0-9_\*]+)?\s+at\s+(.+?)\s+(?:is|was)\s+Approved"#,
+        options: [.caseInsensitive]
+    )
+    private static let dateRegex = try? NSRegularExpression(
+        pattern: #"(?:Trx\s+Date|Date):\s*(\d{2}[-\/]\d{2}[-\/]\d{2,4})"#,
+        options: [.caseInsensitive]
+    )
+
+    static func parse(_ message: String, defaultDate: Date) -> ParsedSMSTransaction? {
+        guard let regex, let match = ParsingHelpers.firstMatch(regex, in: message),
+              let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(match, 2, in: message) ?? "0"),
+              amount > 0
+        else { return nil }
+
+        let currency = ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(match, 1, in: message) ?? "AED")
+        let cardStr = ParsingHelpers.capture(match, 3, in: message)
+        let rawMerchant = ParsingHelpers.capture(match, 4, in: message) ?? "Merchant"
+        let merchant = ParsingHelpers.cleanMerchant(rawMerchant)
+
+        var date = defaultDate
+        if let dateRegex, let dateMatch = ParsingHelpers.firstMatch(dateRegex, in: message),
+           let dateStr = ParsingHelpers.capture(dateMatch, 1, in: message) {
+            date = ParsingHelpers.parseDate(dateStr, defaultDate: defaultDate)
+        }
+
+        let isCreditCard = message.localizedCaseInsensitiveContains("Credit")
+
+        return ParsedSMSTransaction(
+            amount: amount,
+            currency: currency,
+            merchant: merchant,
+            categoryName: MerchantCategorizer.category(for: merchant).rawValue,
+            date: date,
+            paymentMethod: isCreditCard ? .creditCard : .debitCard,
+            cardLast4: ParsingHelpers.extractCardLast4(from: cardStr),
+            rawText: message,
+            isCredit: false
+        )
+    }
+}
+
 // MARK: - Shared Parsing Helpers
 
 private nonisolated enum ParsingHelpers {
@@ -461,25 +691,27 @@ private nonisolated enum ParsingHelpers {
         return .debitCard
     }
 
-    private static let dateFormats = ["dd-MM-yyyy", "dd/MM/yyyy", "dd-MM-yy", "dd/MM/yy", "dd-MMM-yy", "dd-MMM-yyyy"]
+    private static let dateFormats = [
+        "dd-MM-yyyy", "dd/MM/yyyy", "dd-MM-yy", "dd/MM/yy", "dd-MMM-yy", "dd-MMM-yyyy",
+        "MMM d yyyy", "MMM dd yyyy", "dd MMM yyyy",
+        "dd/MM/yyyy HH:mm:ss", "dd/MM/yyyy HH:mm", "dd/MM/yy HH:mm:ss", "dd/MM/yy HH:mm",
+        "dd-MM-yyyy HH:mm:ss", "dd-MM-yyyy HH:mm", "dd-MM-yy HH:mm:ss", "dd-MM-yy HH:mm",
+        "MMM d yyyy h:mma", "MMM d yyyy h:mm a", "MMM d yyyy HH:mm", "MMM dd yyyy h:mma", "MMM dd yyyy h:mm a", "MMM dd yyyy HH:mm"
+    ]
 
     static func parseDate(_ dateStr: String?, defaultDate: Date) -> Date {
         guard let dateStr = dateStr?.trimmingCharacters(in: .whitespacesAndNewlines), !dateStr.isEmpty else {
             return defaultDate
         }
 
+        let cleaned = dateStr.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: ",", with: "")
+
         for format in dateFormats {
             let formatter = DateFormatter()
             formatter.dateFormat = format
             formatter.locale = Locale(identifier: "en_US_POSIX")
-            // DateFormatter's custom dateFormat patterns are surprisingly lenient
-            // about separators and digit counts even with isLenient = false: a
-            // "yyyy" pattern will happily accept "26" from "04/08/26" and produce
-            // year 26 AD instead of failing, so a wrong-but-earlier format in the
-            // list can silently win over the correct one. Reject anything that
-            // couldn't plausibly be a bank SMS date rather than trusting the first
-            // "successful" parse.
-            if let date = formatter.date(from: dateStr),
+            if let date = formatter.date(from: cleaned),
                Calendar.current.component(.year, from: date) >= 1900 {
                 return date
             }
@@ -489,7 +721,7 @@ private nonisolated enum ParsingHelpers {
         let shortFormatter = DateFormatter()
         shortFormatter.dateFormat = "dd-MM"
         shortFormatter.locale = Locale(identifier: "en_US_POSIX")
-        guard let shortDate = shortFormatter.date(from: dateStr) else { return defaultDate }
+        guard let shortDate = shortFormatter.date(from: cleaned) else { return defaultDate }
 
         let calendar = Calendar.current
         var components = calendar.dateComponents([.day, .month], from: shortDate)
@@ -508,10 +740,10 @@ private nonisolated enum MerchantCategorizer {
         (.fuel, ["ADNOC", "ENOC", "EPPCO", "PETROL", "FUEL"]),
         (.transport, ["CAREEM", "UBER", "RTA", "METRO", "TAXI", "SALIK", "PARKING", "RAPIDO", "NAMASTE"]),
         (.health, ["PHARMACY", "ASTER", "MEDCARE", "CLINIC", "HOSPITAL", "MEDICAL", "APOLLO", "1MG"]),
-        (.insurance, ["INSURANCE", "TAKAFUL", "ASSURANCE"]),
+        (.insurance, ["INSURANCE", "TAKAFUL", "ASSURANCE", "ZURICH", "LIFE LT"]),
         (.subscription, ["NETFLIX", "SPOTIFY", "OSN", "ANGHAMI", "SUBSCRIPTION", "APPLE.COM", "GOOGLE", "YOUTUBE"]),
         (.travel, ["EMIRATES", "FLYDUBAI", "AIR ARABIA", "BOOKING", "AGODA", "HOTEL", "AIRLINE", "AIRWAYS", "IRCTC", "MAKEMYTRIP", "INDIGO"]),
-        (.bills, ["DEWA", "SEWA", "ETISALAT", "UTILITY", "AIRTEL", "JIO", "VI"]),
+        (.bills, ["DEWA", "SEWA", "ETISALAT", "UTILITY", "AIRTEL", "JIO", "VI", "LAUNDRY", "CLEANING"]),
         (.upi, ["UPI", "GPAY", "PHONEPE", "PAYTM", "BHIM", "CRED"]),
         (.shopping, ["NOON", "AMAZON", "NAMSHI", "IKEA", "MALL", "CENTREPOINT", "UNIQLO", "SHARAF", "H&M", "STORE", "FLIPKART", "MYNTRA"]),
     ]

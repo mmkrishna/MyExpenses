@@ -279,4 +279,87 @@ struct SMSExpenseParserTests {
         #expect(components.month == 8)
         #expect(components.year == 2026)
     }
+
+    @Test func parsesUserProvidedBankSMSBatch() {
+        let paste = """
+        [06/08/2026, 12:27:09 PM] Srinivas DPW Mandadi: Credit Card Purchase
+        Card Ending: 1013
+        At: HOOKAH PANI STAR CAFE, DUBAI
+        Amount: AED 110.00
+        Date: 02/08/2026, 22:54
+        Available Limit: AED 17,899.46
+        [06/08/2026, 12:27:25 PM] Srinivas DPW Mandadi: A Cr. transaction of AED 37.25 on your account number XXX820001 was successful.Available balance is 2970.45.
+        [06/08/2026, 12:27:32 PM] Srinivas DPW Mandadi: A Dr. transaction of AED 200.00 on your account number XXX820001 was successful.Available balance is 2770.45.
+        [06/08/2026, 12:27:39 PM] Srinivas DPW Mandadi: AED850.00 transferred via ADCB Personal Internet Banking / Mobile App from acc. no. XXX820001 on Aug  4 2026  7:52AM. Avl. bal. AED 2933.20.
+        [06/08/2026, 12:28:12 PM] Srinivas DPW Mandadi: Your Cr.Card XXX6212 was used for AED2942.00 on 03/08/2026 10:16:47 at ZURICH INTL. LIFE LT,DUBAI-AE. Avl. Cr.limit is AED5783.69
+        [06/08/2026, 12:28:44 PM] Srinivas DPW Mandadi: Trx. of AED80.00 on your card ending *429 at SWABI LAUNDRY L.L.C, UAE is Approved. Avl. card bal is 19502.90. Trx Date: 04/08/26 16:45
+        """
+
+        let result = SMSExpenseParser.parse(paste)
+        #expect(result.count == 6)
+
+        // 1. Credit Card Purchase - HOOKAH PANI STAR CAFE
+        let tx1 = result[0]
+        #expect(tx1.amount == Decimal(string: "110.00"))
+        #expect(tx1.currency == "AED")
+        #expect(tx1.merchant == "HOOKAH PANI STAR CAFE")
+        #expect(tx1.cardLast4 == "1013")
+        #expect(tx1.paymentMethod == .creditCard)
+        #expect(tx1.isCredit == false)
+        #expect(tx1.categoryName == "Food")
+
+        // 2. A Cr. transaction of AED 37.25
+        let tx2 = result[1]
+        #expect(tx2.amount == Decimal(string: "37.25"))
+        #expect(tx2.currency == "AED")
+        #expect(tx2.merchant == "Account Credit")
+        #expect(tx2.cardLast4 == "0001")
+        #expect(tx2.isCredit == true)
+
+        // 3. A Dr. transaction of AED 200.00
+        let tx3 = result[2]
+        #expect(tx3.amount == Decimal(string: "200.00"))
+        #expect(tx3.currency == "AED")
+        #expect(tx3.merchant == "Account Debit")
+        #expect(tx3.cardLast4 == "0001")
+        #expect(tx3.isCredit == false)
+
+        // 4. AED850.00 transferred via ADCB
+        let tx4 = result[3]
+        #expect(tx4.amount == Decimal(string: "850.00"))
+        #expect(tx4.currency == "AED")
+        #expect(tx4.merchant == "ADCB Personal Internet Banking / Mobile App")
+        #expect(tx4.cardLast4 == "0001")
+        #expect(tx4.isCredit == false)
+
+        // 5. Your Cr.Card XXX6212 was used for AED2942.00 at ZURICH INTL. LIFE LT
+        let tx5 = result[4]
+        #expect(tx5.amount == Decimal(string: "2942.00"))
+        #expect(tx5.currency == "AED")
+        #expect(tx5.merchant == "ZURICH INTL. LIFE LT")
+        #expect(tx5.cardLast4 == "6212")
+        #expect(tx5.paymentMethod == .creditCard)
+        #expect(tx5.categoryName == "Insurance")
+        #expect(tx5.isCredit == false)
+
+        // 6. Trx. of AED80.00 on your card ending *429 at SWABI LAUNDRY L.L.C
+        let tx6 = result[5]
+        #expect(tx6.amount == Decimal(string: "80.00"))
+        #expect(tx6.currency == "AED")
+        #expect(tx6.merchant == "SWABI LAUNDRY L.L.C")
+        #expect(tx6.cardLast4 == "0429")
+        #expect(tx6.categoryName == "Bills")
+        #expect(tx6.isCredit == false)
+    }
+
+    @Test func parsesUndetectedThreeTransactionsPaste() {
+        let paste = """
+        [06/08/2026, 12:27:25 PM] Srinivas DPW Mandadi: A Cr. transaction of AED 37.25 on your account number XXX820001 was successful.Available balance is 2970.45.
+        [06/08/2026, 12:27:32 PM] Srinivas DPW Mandadi: A Dr. transaction of AED 200.00 on your account number XXX820001 was successful.Available balance is 2770.45.
+        Trx. of AED80.00 on your card ending *429 at SWABI LAUNDRY L.L.C, UAE is Approved. Avl. card bal is 19502.90. Trx Date: 04/08/26 16:45
+        """
+
+        let result = SMSExpenseParser.parse(paste)
+        #expect(result.count == 3)
+    }
 }
