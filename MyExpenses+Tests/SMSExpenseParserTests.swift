@@ -362,4 +362,20 @@ struct SMSExpenseParserTests {
         let result = SMSExpenseParser.parse(paste)
         #expect(result.count == 3)
     }
+
+    @Test func parsesPaymentOfToMerchantWithCardSMS() {
+        let sms = "Payment of AED 37.99 to Noon Minutes with Credit Card ending 8220. Avl Cr. Limit is AED 1,030.80."
+        let result = SMSExpenseParser.parse(sms)
+        #expect(result.count == 1)
+
+        let tx = result[0]
+        #expect(tx.amount == Decimal(string: "37.99"))
+        #expect(tx.currency == "AED")
+        #expect(tx.merchant == "Noon Minutes")
+        #expect(tx.cardLast4 == "8220")
+        #expect(tx.paymentMethod == .creditCard)
+        #expect(tx.categoryName == "Shopping")
+        #expect(tx.isCredit == false)
+    }
 }
+

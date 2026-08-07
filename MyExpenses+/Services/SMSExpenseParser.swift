@@ -124,7 +124,7 @@ private nonisolated enum MessageSplitter {
     /// since that also matches secondary mentions like "Avl Lmt: INR 104,421.60" and
     /// would fracture a single message into unparsable pieces.
     private static let messageStartRegex = try? NSRegularExpression(
-        pattern: #"(?:^|\n|\.\s+)(Dear\s+Customer\b|Txn\s|Purchase\s+of\b|Credit\s+Card\s+Purchase\b|Debit\s+Card\s+Purchase\b|Card\s+Purchase\b|(?:A\s+)?(?:Cr\.?|Dr\.?)\s+(?:trx|txn|transaction)\b|(?:[A-Za-z]{3}|Rs\.?|INR)\s*[\d,]+(?:\.\d{1,2})?\s+transferred\b|Your\s+(?:Cr\.?|Credit|Debit)?\s*Card\b|(?:Trx\.?|Txn\.?|Transaction)\s+of\b|Spent\s+(?:INR|Rs\.?|[A-Za-z]{3})\b|(?:INR|Rs\.?)\s*[\d,]+(?:\.\d{1,2})?\s+spent\b)"#,
+        pattern: #"(?:^|\n|\.\s+)(Dear\s+Customer\b|Txn\s|Purchase\s+of\b|Payment\s+of\b|Credit\s+Card\s+Purchase\b|Debit\s+Card\s+Purchase\b|Card\s+Purchase\b|(?:A\s+)?(?:Cr\.?|Dr\.?)\s+(?:trx|txn|transaction)\b|(?:[A-Za-z]{3}|Rs\.?|INR)\s*[\d,]+(?:\.\d{1,2})?\s+transferred\b|Your\s+(?:Cr\.?|Credit|Debit)?\s*Card\b|(?:Trx\.?|Txn\.?|Transaction)\s+of\b|Spent\s+(?:INR|Rs\.?|[A-Za-z]{3})\b|(?:INR|Rs\.?)\s*[\d,]+(?:\.\d{1,2})?\s+spent\b)"#,
         options: [.caseInsensitive]
     )
 
@@ -386,37 +386,70 @@ private nonisolated enum TxnDebitFormat {
     }
 }
 
-// MARK: - UAE / Standard Purchase
-// "Purchase of AED 42.93 with Debit Card ending 0807 at Noon, 80038888. Avl Balance is
-// AED 2,407.30."
+// MARK: - UAE / Standard Purchase or Payment
+// "Purchase of AED 42.93 with Debit Card ending 0807 at Noon, 80038888. Avl Balance is AED 2,407.30."
+// "Payment of AED 37.99 to Noon Minutes with Credit Card ending 8220. Avl Cr. Limit is AED 1,030.80."
 private nonisolated enum UAEPurchaseFormat {
-    private static let regex = try? NSRegularExpression(
-        pattern: #"Purchase of\s+([A-Za-z]{3})\s+([\d,]+(?:\.\d{1,2})?)\s+with\s+(Debit|Credit)\s+Card(?:\s+ending\s+(\d{3,4}))?\s+at\s+(.+?)(?:\.\s*Avl\b|\.\s*Available\b|$)"#,
+    private static let cardFirstRegex = try? NSRegularExpression(
+        pattern: #"(?:Purchase|Payment)\s+of\s+([A-Za-z]{3})\s+([\d,]+(?:\.\d{1,2})?)\s+with\s+(Debit|Credit)?\s*Card(?:\s+ending\s+(\d{3,4}))?\s+(?:at|to)\s+(.+?)(?:\.\s*Avl\b|\.\s*Available\b|\.\s*$|$)"#,
+        options: [.caseInsensitive]
+    )
+
+    private static let merchantFirstRegex = try? NSRegularExpression(
+        pattern: #"(?:Purchase|Payment)\s+of\s+([A-Za-z]{3})\s+([\d,]+(?:\.\d{1,2})?)\s+(?:at|to)\s+(.+?)\s+with\s+(Debit|Credit)?\s*Card(?:\s+ending\s+(\d{3,4}))?(?:\.\s*Avl\b|\.\s*Available\b|\.\s*$|$)"#,
         options: [.caseInsensitive]
     )
 
     static func parse(_ message: String, defaultDate: Date) -> ParsedSMSTransaction? {
-        guard let regex, let match = ParsingHelpers.firstMatch(regex, in: message),
-              let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(match, 2, in: message) ?? "0"),
-              amount > 0,
-              let cardType = ParsingHelpers.capture(match, 3, in: message)
-        else { return nil }
+        if let regex = cardFirstRegex, let match = ParsingHelpers.firstMatch(regex, in: message),
+           let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(match, 2, in: message) ?? "0"),
+           amount > 0 {
+            let currency = ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(match, 1, in: message) ?? "AED")
+            let cardType = ParsingHelpers.capture(match, 3, in: message) ?? "Card"
+            let cardLast4 = ParsingHelpers.capture(match, 4, in: message)
+            let merchant = ParsingHelpers.cleanMerchant(ParsingHelpers.capture(match, 5, in: message) ?? "Merchant")
+            let paymentMethod: PaymentMethod = cardType.lowercased() == "debit" ? .debitCard : .creditCard
 
-        let merchant = ParsingHelpers.cleanMerchant(ParsingHelpers.capture(match, 5, in: message) ?? "Merchant")
+            return ParsedSMSTransaction(
+                amount: amount,
+                currency: currency,
+                merchant: merchant,
+                categoryName: MerchantCategorizer.category(for: merchant).rawValue,
+                date: defaultDate,
+                paymentMethod: paymentMethod,
+                cardLast4: cardLast4,
+                rawText: message,
+                isCredit: false
+            )
+        }
 
-        return ParsedSMSTransaction(
-            amount: amount,
-            currency: ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(match, 1, in: message) ?? "AED"),
-            merchant: merchant,
-            categoryName: MerchantCategorizer.category(for: merchant).rawValue,
-            date: defaultDate,
-            paymentMethod: cardType.lowercased() == "credit" ? .creditCard : .debitCard,
-            cardLast4: ParsingHelpers.capture(match, 4, in: message),
-            rawText: message,
-            isCredit: false
-        )
+        if let regex = merchantFirstRegex, let match = ParsingHelpers.firstMatch(regex, in: message),
+           let amount = ParsingHelpers.decimal(from: ParsingHelpers.capture(match, 2, in: message) ?? "0"),
+           amount > 0 {
+            let currency = ParsingHelpers.normalizeCurrency(ParsingHelpers.capture(match, 1, in: message) ?? "AED")
+            let merchant = ParsingHelpers.cleanMerchant(ParsingHelpers.capture(match, 3, in: message) ?? "Merchant")
+            let cardType = ParsingHelpers.capture(match, 4, in: message) ?? "Card"
+            let cardLast4 = ParsingHelpers.capture(match, 5, in: message)
+            let paymentMethod: PaymentMethod = cardType.lowercased() == "debit" ? .debitCard : .creditCard
+
+            return ParsedSMSTransaction(
+                amount: amount,
+                currency: currency,
+                merchant: merchant,
+                categoryName: MerchantCategorizer.category(for: merchant).rawValue,
+                date: defaultDate,
+                paymentMethod: paymentMethod,
+                cardLast4: cardLast4,
+                rawText: message,
+                isCredit: false
+            )
+        }
+
+
+        return nil
     }
 }
+
 
 // MARK: - Key-Value Purchase
 // "Credit Card Purchase\nCard Ending: 1013\nAt: HOOKAH PANI STAR CAFE, DUBAI\nAmount: AED 110.00\nDate: 02/08/2026, 22:54\nAvailable Limit: AED 17,899.46"
