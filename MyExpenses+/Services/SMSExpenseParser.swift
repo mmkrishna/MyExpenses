@@ -445,11 +445,9 @@ private nonisolated enum UAEPurchaseFormat {
             )
         }
 
-
         return nil
     }
 }
-
 
 // MARK: - Key-Value Purchase
 // "Credit Card Purchase\nCard Ending: 1013\nAt: HOOKAH PANI STAR CAFE, DUBAI\nAmount: AED 110.00\nDate: 02/08/2026, 22:54\nAvailable Limit: AED 17,899.46"
@@ -714,14 +712,20 @@ private nonisolated enum ParsingHelpers {
         let upper = text.uppercased()
         if upper.contains("UPI") {
             return .upi
-        } else if upper.contains("CREDIT") || upper.contains("CC") {
-            return .creditCard
-        } else if upper.contains("DEBIT") || upper.contains("CARD") {
-            return .debitCard
-        } else if defaultCredit {
-            return .bankTransfer
         }
-        return .debitCard
+        // Match the full "credit/debit card" phrase (or a "Cr./Dr. Card" abbreviation)
+        // rather than a bare "CREDIT"/"CC" substring — those also hide inside
+        // "credited", "Acct", and "successful", and would mislabel a bank credit.
+        if upper.contains("CREDIT CARD") || upper.range(of: #"\bCR\.?\s*CARD\b"#, options: .regularExpression) != nil {
+            return .creditCard
+        }
+        if upper.contains("DEBIT CARD") || upper.range(of: #"\bDR\.?\s*CARD\b"#, options: .regularExpression) != nil {
+            return .debitCard
+        }
+        if upper.contains("CARD") {
+            return .debitCard
+        }
+        return defaultCredit ? .bankTransfer : .debitCard
     }
 
     private static let dateFormats = [
@@ -732,6 +736,23 @@ private nonisolated enum ParsingHelpers {
         "MMM d yyyy h:mma", "MMM d yyyy h:mm a", "MMM d yyyy HH:mm", "MMM dd yyyy h:mma", "MMM dd yyyy h:mm a", "MMM dd yyyy HH:mm"
     ]
 
+    /// Built once and reused: `parse` runs on every keystroke in the import screen,
+    /// so allocating two dozen formatters per call is needless churn. DateFormatter's
+    /// parsing is thread-safe once it's configured.
+    private static let dateFormatters: [DateFormatter] = dateFormats.map { format in
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }
+
+    private static let shortDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd-MM"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
     static func parseDate(_ dateStr: String?, defaultDate: Date) -> Date {
         guard let dateStr = dateStr?.trimmingCharacters(in: .whitespacesAndNewlines), !dateStr.isEmpty else {
             return defaultDate
@@ -740,10 +761,7 @@ private nonisolated enum ParsingHelpers {
         let cleaned = dateStr.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .replacingOccurrences(of: ",", with: "")
 
-        for format in dateFormats {
-            let formatter = DateFormatter()
-            formatter.dateFormat = format
-            formatter.locale = Locale(identifier: "en_US_POSIX")
+        for formatter in dateFormatters {
             if let date = formatter.date(from: cleaned),
                Calendar.current.component(.year, from: date) >= 1900 {
                 return date
@@ -751,15 +769,11 @@ private nonisolated enum ParsingHelpers {
         }
 
         // Short "dd-MM" (e.g. "03-08") carries no year, so borrow the default date's.
-        let shortFormatter = DateFormatter()
-        shortFormatter.dateFormat = "dd-MM"
-        shortFormatter.locale = Locale(identifier: "en_US_POSIX")
-        guard let shortDate = shortFormatter.date(from: cleaned) else { return defaultDate }
-
+        guard let shortDate = shortDateFormatter.date(from: cleaned) else { return defaultDate }
         let calendar = Calendar.current
         var components = calendar.dateComponents([.day, .month], from: shortDate)
         components.year = calendar.component(.year, from: defaultDate)
-        return components.year.flatMap { _ in calendar.date(from: components) } ?? defaultDate
+        return calendar.date(from: components) ?? defaultDate
     }
 }
 
