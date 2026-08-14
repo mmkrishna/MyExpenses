@@ -295,12 +295,17 @@ struct SettingsView: View {
     }
 
     private func tip(_ tier: TipStore.Tier) {
-        guard let product = tipStore.product(for: tier) else {
-            // Products haven't loaded (offline, or the store is unreachable).
-            tipStore.errorMessage = "Tips aren't available right now. Please try again in a moment."
-            return
-        }
         Task {
+            // Products can be empty if the first load was slow or failed (common in
+            // the sandbox right after install). Try once more on tap before giving
+            // up, so a transient miss doesn't dead-end on an error.
+            if tipStore.product(for: tier) == nil {
+                await tipStore.loadProducts()
+            }
+            guard let product = tipStore.product(for: tier) else {
+                tipStore.errorMessage = "Tips aren't available right now. Please try again in a moment."
+                return
+            }
             if await tipStore.tip(product) {
                 Haptics.success()
                 showingThankYou = true
