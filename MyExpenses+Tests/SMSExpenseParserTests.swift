@@ -377,5 +377,69 @@ struct SMSExpenseParserTests {
         #expect(tx.categoryName == "Shopping")
         #expect(tx.isCredit == false)
     }
+
+    // MARK: - DIB / FAB
+
+    /// DIB truncates merchant names mid-word and runs the next sentence straight
+    /// on with no space (".Available"), and some names carry a dot of their own,
+    /// so the merchant has to run to that exact phrase rather than to the first
+    /// full stop — otherwise "Amazon.ae" comes back as "Amazon".
+    @Test func parsesDIBOnlinePurchase() {
+        let sms = "Online Purchase of AED 194.75 on Covered Card XX8726 on 05-MAY-2026 12:58 from Amazon.ae.Available Credit Limit is AED 24,923.34"
+        let tx = try! #require(SMSExpenseParser.parse(sms).first)
+        #expect(tx.amount == Decimal(string: "194.75"))
+        #expect(tx.currency == "AED")
+        #expect(tx.merchant == "Amazon.ae")
+        #expect(tx.cardLast4 == "8726")
+        #expect(tx.isCredit == false)
+
+        let components = Calendar.current.dateComponents([.day, .month, .year], from: tx.date)
+        #expect(components.day == 5)
+        #expect(components.month == 5)
+        #expect(components.year == 2026)
+    }
+
+    /// FAB's card-bill payment carries no merchant, so it is labelled by the card
+    /// it settles rather than given an invented one.
+    @Test func parsesFABCardBillPayment() {
+        let sms = "Dear Customer, Your Payment of AED 105.00 for card 5425XXXXXXXX7109 has been processed on 15/05/2026"
+        let tx = try! #require(SMSExpenseParser.parse(sms).first)
+        #expect(tx.amount == Decimal(string: "105.00"))
+        #expect(tx.currency == "AED")
+        #expect(tx.cardLast4 == "7109")
+        #expect(tx.merchant == "Card Payment ****7109")
+        #expect(tx.isCredit == false)
+    }
+
+    /// Each format's opening phrase must also be listed in the splitter, or its
+    /// messages never start a new piece and get swallowed into the one before —
+    /// every message here parsed fine alone while the batch came back 5 of 8.
+    @Test func parsesAMixedUAEBatchInOnePaste() {
+        let paste = """
+        Dear Customer, Your Payment of AED 105.00 for card 5425XXXXXXXX7109 has been processed on 15/05/2026
+
+        Dear Customer, Your Payment of AED 38.00 for card 5213XXXXXXXX3974 has been processed on 15/05/2026
+
+        Your Cr.Card XXX0533 was used for AED1205.00 on 27/01/2026 15:35:43 at EMIRATES,DUBAI-AE. Avl. Cr.limit is AED1511.08
+
+        Your Cr.Card XXX0533 was used for AED38.05 on 06/12/2025 12:32:17 at Noon Food,Dubai-AE. Avl. Cr.limit is AED437.39
+
+        Online Purchase of AED 16.00 on Covered Card XX8726 on 12-MAY-2026 12:05 from Amazon Prime Subscri.Available Credit Limit is AED 24,779.21
+
+        Online Purchase of AED 1,350.00 on Covered Card XX8726 on 05-MAY-2026 12:08 from Smart Dubai Governme.Available Credit Limit is AED 25,118.09
+        """
+
+        let result = SMSExpenseParser.parse(paste)
+
+        #expect(result.count == 6)
+        #expect(result.map(\.amount) == [
+            Decimal(string: "105.00"), Decimal(string: "38.00"),
+            Decimal(string: "1205.00"), Decimal(string: "38.05"),
+            Decimal(string: "16.00"), Decimal(string: "1350.00"),
+        ])
+        #expect(result[2].merchant == "EMIRATES")
+        #expect(result[3].merchant == "Noon Food")
+        #expect(result[5].merchant == "Smart Dubai Governme")
+    }
 }
 
