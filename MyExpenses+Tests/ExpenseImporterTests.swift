@@ -95,5 +95,42 @@ struct ExpenseImporterTests {
         let carrefour = try #require(stored.first { $0.merchant == "Carrefour" })
         #expect(calendar.isDate(adnoc.date, inSameDayAs: lastMonth))
         #expect(calendar.isDate(carrefour.date, inSameDayAs: yesterday))
+
+        // A card-bill payment settles spending that is already recorded by the
+        // card's own purchase messages, so storing it would count the same money
+        // twice. It must reach neither table, and must not inflate the count the
+        // caller reports.
+        let expensesBefore = try context.fetch(FetchDescriptor<Expense>()).count
+        let incomesBefore = try context.fetch(FetchDescriptor<Income>()).count
+
+        let settlement = SMSExpenseParser.parse(
+            "Dear Customer, Your Payment of AED 105.00 for card 5425XXXXXXXX7109 has been processed on 15/05/2026"
+        )
+        #expect(settlement.count == 1)
+        #expect(settlement[0].isTransfer == true)
+
+        let transferResult = try ExpenseImporter.importExpenses(settlement, into: context)
+        #expect(transferResult.count == 0)
+        #expect(try context.fetch(FetchDescriptor<Expense>()).count == expensesBefore)
+        #expect(try context.fetch(FetchDescriptor<Income>()).count == incomesBefore)
+
+        // A paste mixing the two still imports the purchase and drops only the
+        // settlement.
+        let mixedPaste = SMSExpenseParser.parse(
+            """
+            Dear Customer, Your Payment of AED 105.00 for card 5425XXXXXXXX7109 has been processed on 15/05/2026
+
+            Purchase of AED 63.00 with Debit Card ending 0807 at Spinneys, DUBAI. Avl Balance is AED 700.00.
+            """
+        )
+        #expect(mixedPaste.count == 2)
+
+        let mixedResult = try ExpenseImporter.importExpenses(mixedPaste, into: context)
+        #expect(mixedResult.count == 1)
+        #expect(mixedResult.total == Decimal(string: "63.00"))
+
+        stored = try context.fetch(FetchDescriptor<Expense>())
+        #expect(stored.contains { $0.merchant == "Spinneys" })
+        #expect(!stored.contains { $0.merchant.hasPrefix("Card ****") })
     }
 }

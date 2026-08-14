@@ -92,9 +92,11 @@ struct ImportSMSView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add \(transactions.count)") { addAll() }
+                    // Counts what will actually be stored, so the button never
+                    // promises to add a transfer it is going to skip.
+                    Button("Add \(importableCount)") { addAll() }
                         .fontWeight(.semibold)
-                        .disabled(transactions.isEmpty)
+                        .disabled(importableCount == 0)
                 }
             }
             .alert("Could not import expenses", isPresented: Binding(
@@ -111,9 +113,12 @@ struct ImportSMSView: View {
     private func transactionRow(_ transaction: Binding<ParsedSMSTransaction>) -> some View {
         HStack(spacing: 12) {
             let isCredit = transaction.wrappedValue.isCredit
+            let isTransfer = transaction.wrappedValue.isTransfer
             let resolved = category(named: transaction.wrappedValue.categoryName)
-            let iconName = isCredit ? "arrow.down.left.circle.fill" : (resolved?.symbolName ?? BuiltInCategory.fallback.systemImage)
-            let iconColor = isCredit ? Color.green : (resolved?.color ?? .gray)
+            let iconName = isTransfer
+                ? "arrow.left.arrow.right.circle.fill"
+                : (isCredit ? "arrow.down.left.circle.fill" : (resolved?.symbolName ?? BuiltInCategory.fallback.systemImage))
+            let iconColor = isTransfer ? Color.secondary : (isCredit ? Color.green : (resolved?.color ?? .gray))
 
             Image(systemName: iconName)
                 .font(.system(size: 16, weight: .semibold))
@@ -134,6 +139,11 @@ struct ImportSMSView: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(.green)
                         }
+                        if isTransfer {
+                            Text("• Not added")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Spacer(minLength: 4)
@@ -147,33 +157,48 @@ struct ImportSMSView: View {
                         .layoutPriority(1)
                 }
 
-                HStack(spacing: 8) {
-                    if !isCredit {
-                        Picker("Category", selection: transaction.categoryName) {
-                            ForEach(categories) { category in
-                                Label(category.name, systemImage: category.symbolName).tag(category.name)
+                if isTransfer {
+                    // Nothing on a transfer row is editable, because none of it
+                    // gets stored — so it explains itself instead.
+                    Text("Paying off a card moves your own money, so it isn't counted as spending. The purchases on that card are.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    HStack(spacing: 8) {
+                        if !isCredit {
+                            Picker("Category", selection: transaction.categoryName) {
+                                ForEach(categories) { category in
+                                    Label(category.name, systemImage: category.symbolName).tag(category.name)
+                                }
                             }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .fixedSize()
                         }
+
+                        Spacer(minLength: 4)
+
+                        DatePicker(
+                            "Date",
+                            selection: transaction.date,
+                            displayedComponents: .date
+                        )
                         .labelsHidden()
-                        .pickerStyle(.menu)
                         .fixedSize()
+                        .accessibilityLabel("Date for \(transaction.wrappedValue.merchant)")
                     }
-
-                    Spacer(minLength: 4)
-
-                    DatePicker(
-                        "Date",
-                        selection: transaction.date,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                    .fixedSize()
-                    .accessibilityLabel("Date for \(transaction.wrappedValue.merchant)")
+                    .font(.subheadline)
                 }
-                .font(.subheadline)
             }
         }
         .padding(.vertical, 4)
+    }
+
+    /// Transfers are shown but never stored, so the count the user acts on has to
+    /// exclude them.
+    private var importableCount: Int {
+        transactions.count { !$0.isTransfer }
     }
 
     private func category(named name: String) -> ExpenseCategory? {

@@ -18,7 +18,13 @@ enum ExpenseImporter {
         var dbCounts = existingFingerprintCounts(in: context)
         var newTransactions: [ParsedSMSTransaction] = []
 
-        for transaction in transactions {
+        // Transfers move money between the user's own accounts, so storing one
+        // would count spending that is already recorded by the purchases it
+        // settles. Dropped here rather than at the call site so every route into
+        // the importer — the SMS sheet, the Shortcuts intent — is covered.
+        let importable = transactions.filter { !$0.isTransfer }
+
+        for transaction in importable {
             let fp = fingerprint(for: transaction)
             let existing = dbCounts[fp, default: 0]
             if existing > 0 {
@@ -58,7 +64,7 @@ enum ExpenseImporter {
         if !newTransactions.isEmpty {
             try context.save()
         }
-        let currency = transactions.first?.currency ?? CurrencyFormatter.preferredCurrencyCode
+        let currency = importable.first?.currency ?? CurrencyFormatter.preferredCurrencyCode
         return ExpenseImportResult(count: newTransactions.count, total: total, currency: currency)
     }
 

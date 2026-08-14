@@ -22,6 +22,13 @@ nonisolated struct ParsedSMSTransaction: Identifiable {
     var cardLast4: String?
     var rawText: String
     var isCredit: Bool = false
+    /// Money moving between the user's own accounts rather than in or out of
+    /// them — paying off a credit card being the case that actually turns up in
+    /// SMS. Recognised so the message is visibly understood rather than looking
+    /// unparsed, but never stored: the card's purchases arrive as their own
+    /// messages, so importing the settlement too would count the same spending
+    /// a second time.
+    var isTransfer: Bool = false
 }
 
 // MARK: - Parser
@@ -728,10 +735,12 @@ private nonisolated enum OnlinePurchaseFormat {
 // "Dear Customer, Your Payment of AED 105.00 for card 5425XXXXXXXX7109 has been
 // processed on 15/05/2026"
 //
-// This is settling a card bill, not buying anything, so it carries no merchant.
-// Naming it "Card Payment ****7109" rather than inventing a merchant keeps it
-// obvious in the import list — the purchases it settles usually arrive as their
-// own messages, so adding both would count the same spending twice.
+// Settling a card bill moves money between the user's own accounts, so it is not
+// spending and carries no merchant. It is flagged `isTransfer` rather than
+// dropped: the message is recognised and shown, so the user can see it was
+// understood, but the importer never stores it. Counting it as an expense would
+// double the same money, since the purchases it settles arrive as their own
+// messages and are imported on their own terms.
 private nonisolated enum CardBillPaymentFormat {
     private static let regex = try? NSRegularExpression(
         pattern: #"Payment\s+of\s+([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)\s+for\s+card\s+([0-9Xx\*]{4,})\s+has\s+been\s+processed(?:\s+on\s+(\d{2}[-\/](?:\d{2}|[A-Za-z]{3})[-\/]\d{2,4}))?"#,
@@ -744,19 +753,22 @@ private nonisolated enum CardBillPaymentFormat {
               amount > 0
         else { return nil }
 
+        // Short enough to survive truncation in the import row, where the card
+        // digits are the only thing distinguishing one settlement from another.
         let last4 = ParsingHelpers.extractCardLast4(from: match[3])
-        let merchant = last4.map { "Card Payment ****\($0)" } ?? "Card Payment"
+        let merchant = last4.map { "Card ****\($0)" } ?? "Card Payment"
 
         return ParsedSMSTransaction(
             amount: amount,
             currency: ParsingHelpers.normalizeCurrency(match[1] ?? "AED"),
             merchant: merchant,
-            categoryName: BuiltInCategory.bills.rawValue,
+            categoryName: BuiltInCategory.fallback.rawValue,
             date: ParsingHelpers.parseDate(match[4], defaultDate: defaultDate),
             paymentMethod: .bankTransfer,
             cardLast4: last4,
             rawText: message,
-            isCredit: false
+            isCredit: false,
+            isTransfer: true
         )
     }
 }

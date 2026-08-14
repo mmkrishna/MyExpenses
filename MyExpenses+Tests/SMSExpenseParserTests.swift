@@ -411,8 +411,25 @@ struct SMSExpenseParserTests {
         #expect(tx.amount == Decimal(string: "105.00"))
         #expect(tx.currency == "AED")
         #expect(tx.cardLast4 == "7109")
-        #expect(tx.merchant == "Card Payment ****7109")
+        #expect(tx.merchant == "Card ****7109")
         #expect(tx.isCredit == false)
+        // Recognised so the message visibly parses, but flagged so the importer
+        // never stores it — the card's own purchases are the spending.
+        #expect(tx.isTransfer == true)
+    }
+
+    /// Purchases must not be caught by the transfer flag — only the settlement is.
+    @Test func ordinaryPurchasesAreNotFlaggedAsTransfers() {
+        let purchases = [
+            "Purchase of AED 42.93 with Debit Card ending 0807 at Noon, 80038888. Avl Balance is AED 2,407.30.",
+            "Online Purchase of AED 16.00 on Covered Card XX8726 on 12-MAY-2026 12:05 from Amazon Prime Subscri.Available Credit Limit is AED 24,779.21",
+            "Your Cr.Card XXX0533 was used for AED1205.00 on 27/01/2026 15:35:43 at EMIRATES,DUBAI-AE. Avl. Cr.limit is AED1511.08",
+            "Payment of AED 37.99 to Noon Minutes with Credit Card ending 8220. Avl Cr. Limit is AED 1,030.80.",
+        ]
+        for sms in purchases {
+            let tx = try! #require(SMSExpenseParser.parse(sms).first)
+            #expect(tx.isTransfer == false, "\(tx.merchant) should be spending, not a transfer")
+        }
     }
 
     /// Each format's opening phrase must also be listed in the splitter, or its
