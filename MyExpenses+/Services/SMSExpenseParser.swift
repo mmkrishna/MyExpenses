@@ -608,7 +608,12 @@ private nonisolated enum BankTransferFormat {
 // "Your Cr.Card XXX6212 was used for AED2942.00 on 03/08/2026 10:16:47 at ZURICH INTL. LIFE LT,DUBAI-AE. Avl. Cr.limit is AED5783.69"
 private nonisolated enum CardUsedFormat {
     private static let regex = try? NSRegularExpression(
-        pattern: #"Your\s+(?:Cr\.?\s*)?Card\s+([A-Za-z0-9_\*]+)\s+was\s+used\s+for\s+([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)(?:\s+on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}(?:\s+\d{2}:\d{2}:\d{2})?))?\s+at\s+([^;\.\r\n]+)"#,
+        // The merchant runs lazily up to the balance sentence rather than stopping
+        // at the first full stop: abbreviated company names carry their own dots
+        // ("ZURICH INTL. LIFE LT"), which a dot-excluding class would cut in half.
+        // The trailing branch is left to `cleanMerchant`, which drops the ",CITY-AE"
+        // suffix these messages always append.
+        pattern: #"Your\s+(?:Cr\.?\s*)?Card\s+([A-Za-z0-9_\*]+)\s+was\s+used\s+for\s+([A-Za-z]{3}|Rs\.?|INR)\s*([\d,]+(?:\.\d{1,2})?)(?:\s+on\s+(\d{2}[-\/]\d{2}[-\/]\d{2,4}(?:\s+\d{2}:\d{2}:\d{2})?))?\s+at\s+([^;\r\n]+?)(?:\.\s*Avl\b|\.\s*Available\b|$)"#,
         options: [.caseInsensitive]
     )
 

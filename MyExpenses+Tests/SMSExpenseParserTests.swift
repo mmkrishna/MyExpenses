@@ -347,7 +347,11 @@ struct SMSExpenseParserTests {
         #expect(tx6.amount == Decimal(string: "80.00"))
         #expect(tx6.currency == "AED")
         #expect(tx6.merchant == "SWABI LAUNDRY L.L.C")
-        #expect(tx6.cardLast4 == "0429")
+        // "*429" masks the fourth digit, so only three are actually known.
+        // Padding to "0429" would state a digit the message never gave and show
+        // the user a card number that is wrong in its leading position, so the
+        // parser keeps what it was told.
+        #expect(tx6.cardLast4 == "429")
         #expect(tx6.categoryName == "Bills")
         #expect(tx6.isCredit == false)
     }
