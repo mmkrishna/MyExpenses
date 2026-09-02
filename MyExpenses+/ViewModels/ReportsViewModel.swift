@@ -183,8 +183,9 @@ final class ReportsViewModel {
         categoryTotals: [CategorySpending],
         incomeSourceTotals: [IncomeSourceTotal]
     ) {
-        guard let url = CSVExportService.exportMonthlyCategoryReport(
-            month: month,
+        guard let url = CSVExportService.exportCategoryReport(
+            reportTitle: "Monthly Report",
+            periodLabel: month.formatted(.dateTime.month(.wide).year()),
             incomeTotal: incomeTotal,
             expenseTotal: expenseTotal,
             categoryTotals: categoryTotals,
@@ -205,7 +206,8 @@ final class ReportsViewModel {
         currencyCode: String
     ) {
         guard let url = MonthlyReportPDFService.export(
-            month: month,
+            reportTitle: "Monthly Report",
+            periodLabel: month.formatted(.dateTime.month(.wide).year()),
             incomeTotal: incomeTotal,
             expenseTotal: expenseTotal,
             categoryTotals: categoryTotals,

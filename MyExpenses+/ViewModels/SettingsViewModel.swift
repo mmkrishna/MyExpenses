@@ -63,20 +63,64 @@ final class SettingsViewModel {
         }
     }
 
-    func exportCSV(_ expenses: [Expense]) {
-        guard let url = CSVExportService.export(expenses) else {
+    func exportAnnualReportCSV(expenses: [Expense], incomes: [Income], year: Int = Calendar.current.component(.year, from: Date())) {
+        guard let url = CSVExportService.exportCategoryReport(
+            reportTitle: "Annual Report",
+            periodLabel: String(year),
+            incomeTotal: totalIncome(incomes, inYear: year),
+            expenseTotal: totalExpenses(expenses, inYear: year),
+            categoryTotals: categoryTotals(expenses, inYear: year),
+            incomeSourceTotals: incomeSourceTotals(incomes, inYear: year)
+        ) else {
             alertMessage = "Could not export CSV."
             return
         }
         shareURL = url
     }
 
-    func exportPDF(_ expenses: [Expense]) {
-        guard let url = PDFExportService.export(expenses) else {
+    @MainActor
+    func exportAnnualReportPDF(expenses: [Expense], incomes: [Income], year: Int = Calendar.current.component(.year, from: Date())) {
+        guard let url = MonthlyReportPDFService.export(
+            reportTitle: "Annual Report",
+            periodLabel: String(year),
+            incomeTotal: totalIncome(incomes, inYear: year),
+            expenseTotal: totalExpenses(expenses, inYear: year),
+            categoryTotals: categoryTotals(expenses, inYear: year),
+            incomeSourceTotals: incomeSourceTotals(incomes, inYear: year),
+            currencyCode: currencyCode
+        ) else {
             alertMessage = "Could not export PDF."
             return
         }
         shareURL = url
+    }
+
+    private func totalExpenses(_ expenses: [Expense], inYear year: Int, calendar: Calendar = .current) -> Decimal {
+        expenses
+            .filter { calendar.component(.year, from: $0.date) == year }
+            .reduce(into: Decimal.zero) { $0 += $1.amount }
+    }
+
+    private func totalIncome(_ incomes: [Income], inYear year: Int, calendar: Calendar = .current) -> Decimal {
+        incomes
+            .filter { calendar.component(.year, from: $0.date) == year }
+            .reduce(into: Decimal.zero) { $0 += $1.amount }
+    }
+
+    private func categoryTotals(_ expenses: [Expense], inYear year: Int, calendar: Calendar = .current) -> [CategorySpending] {
+        let yearExpenses = expenses.filter { calendar.component(.year, from: $0.date) == year }
+        let grouped = Dictionary(grouping: yearExpenses, by: \.category)
+        return grouped
+            .map { CategorySpending(category: $0.key, total: $0.value.reduce(into: Decimal.zero) { $0 += $1.amount }) }
+            .sorted { $0.total > $1.total }
+    }
+
+    private func incomeSourceTotals(_ incomes: [Income], inYear year: Int, calendar: Calendar = .current) -> [IncomeSourceTotal] {
+        let yearIncomes = incomes.filter { calendar.component(.year, from: $0.date) == year }
+        let grouped = Dictionary(grouping: yearIncomes, by: \.source)
+        return grouped
+            .map { IncomeSourceTotal(source: $0.key, total: $0.value.reduce(into: Decimal.zero) { $0 += $1.amount }) }
+            .sorted { $0.total > $1.total }
     }
 
     func backup(_ expenses: [Expense]) {

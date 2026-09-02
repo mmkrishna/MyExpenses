@@ -11,7 +11,8 @@ import UIKit
 enum MonthlyReportPDFService {
     @MainActor
     static func export(
-        month: Date,
+        reportTitle: String,
+        periodLabel: String,
         incomeTotal: Decimal,
         expenseTotal: Decimal,
         categoryTotals: [CategorySpending],
@@ -26,7 +27,8 @@ enum MonthlyReportPDFService {
         let pageSize = CGSize(width: pageWidth, height: pageHeight)
 
         let page = MonthlyReportPage(
-            month: month,
+            reportTitle: reportTitle,
+            periodLabel: periodLabel,
             incomeTotal: incomeTotal,
             expenseTotal: expenseTotal,
             categoryTotals: categoryTotals,
@@ -41,7 +43,7 @@ enum MonthlyReportPDFService {
         renderer.proposedSize = ProposedViewSize(pageSize)
 
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("monthly-report-\(UUID().uuidString).pdf")
+            .appendingPathComponent("report-\(UUID().uuidString).pdf")
 
         let pdfRenderer = UIGraphicsPDFRenderer(bounds: CGRect(origin: .zero, size: pageSize))
         do {
@@ -93,7 +95,8 @@ private struct BreakdownEntry: Identifiable {
 }
 
 struct MonthlyReportPage: View {
-    let month: Date
+    let reportTitle: String
+    let periodLabel: String
     let incomeTotal: Decimal
     let expenseTotal: Decimal
     let categoryTotals: [CategorySpending]
@@ -124,8 +127,8 @@ struct MonthlyReportPage: View {
             header
             summaryRow
 
-            breakdownSection(title: "Income by Category", entries: sortedIncomeEntries, total: incomeTotal, emptyMessage: "No income recorded this month.")
-            breakdownSection(title: "Spending by Category", entries: sortedExpenseEntries, total: expenseTotal, emptyMessage: "No expenses recorded this month.")
+            breakdownSection(title: "Income by Category", entries: sortedIncomeEntries, total: incomeTotal, emptyMessage: "No income recorded.")
+            breakdownSection(title: "Spending by Category", entries: sortedExpenseEntries, total: expenseTotal, emptyMessage: "No expenses recorded.")
 
             Spacer(minLength: 0)
             footer
@@ -136,10 +139,10 @@ struct MonthlyReportPage: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Monthly Report")
+                Text(reportTitle)
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(Self.brand)
-                Text(month.formatted(.dateTime.month(.wide).year()))
+                Text(periodLabel)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)
             }

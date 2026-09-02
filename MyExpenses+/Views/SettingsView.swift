@@ -10,6 +10,7 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Query private var expenses: [Expense]
+    @Query private var incomes: [Income]
     @Environment(\.modelContext) private var modelContext
     @Environment(UserProfileViewModel.self) private var profile
     @State private var viewModel = SettingsViewModel()
@@ -24,6 +25,36 @@ struct SettingsView: View {
     // Read from the bundle so the shipped version is always what's shown.
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
+    private var exportFooterText: String {
+        let year = Calendar.current.component(.year, from: Date())
+        return "A full annual report with income and spending broken down by category, for \(year)."
+    }
+
+    // Extracted so the Form body stays small enough for the type-checker.
+    private var exportSection: some View {
+        Section {
+            Button {
+                Haptics.tap()
+                viewModel.exportAnnualReportCSV(expenses: expenses, incomes: incomes)
+            } label: {
+                Label("Export CSV", systemImage: "doc.text")
+            }
+            .disabled(expenses.isEmpty && incomes.isEmpty)
+
+            Button {
+                Haptics.tap()
+                viewModel.exportAnnualReportPDF(expenses: expenses, incomes: incomes)
+            } label: {
+                Label("Export PDF", systemImage: "doc.richtext")
+            }
+            .disabled(expenses.isEmpty && incomes.isEmpty)
+        } header: {
+            Text("Export")
+        } footer: {
+            Text(exportFooterText)
+        }
     }
 
     // Extracted so the Form body stays small enough for the type-checker.
@@ -168,23 +199,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Export") {
-                    Button {
-                        Haptics.tap()
-                        viewModel.exportCSV(expenses)
-                    } label: {
-                        Label("Export CSV", systemImage: "doc.text")
-                    }
-                    .disabled(expenses.isEmpty)
-
-                    Button {
-                        Haptics.tap()
-                        viewModel.exportPDF(expenses)
-                    } label: {
-                        Label("Export PDF", systemImage: "doc.richtext")
-                    }
-                    .disabled(expenses.isEmpty)
-                }
+                exportSection
 
                 Section("Backup & Restore") {
                     Button {
