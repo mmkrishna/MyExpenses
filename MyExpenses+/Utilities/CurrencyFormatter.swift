@@ -26,6 +26,21 @@ enum CurrencyFormatter {
         return formatter.string(from: number) ?? number.stringValue
     }
 
+    /// A short "1.2K"-style figure for tight spaces like chart bar labels,
+    /// prefixed with the currency symbol instead of a full localized amount.
+    static func compactString(from amount: Decimal, currencyCode: String = CurrencyFormatter.preferredCurrencyCode) -> String {
+        let value = NSDecimalNumber(decimal: amount).doubleValue
+        let symbol = symbol(for: currencyCode)
+        switch abs(value) {
+        case 1_000_000...:
+            return "\(symbol)\(String(format: "%.1fM", value / 1_000_000))"
+        case 1_000...:
+            return "\(symbol)\(String(format: "%.1fK", value / 1_000))"
+        default:
+            return "\(symbol)\(String(format: "%.0f", value))"
+        }
+    }
+
     static func decimal(from text: String, locale: Locale = .current) -> Decimal? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }

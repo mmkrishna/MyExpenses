@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 struct MonthlyTotal: Identifiable {
     let month: Date
@@ -11,6 +12,23 @@ struct DailyTotal: Identifiable {
     let day: Date
     let total: Decimal
     var id: Date { day }
+}
+
+struct MonthlySummary: Identifiable {
+    let month: Date
+    let income: Decimal
+    let expense: Decimal
+    var net: Decimal { income - expense }
+    var id: Date { month }
+}
+
+struct IncomeSourceTotal: Identifiable {
+    let source: IncomeSource
+    let total: Decimal
+    var id: String { source.id }
+    var name: String { source.rawValue }
+    var symbolName: String { source.systemImage }
+    var color: Color { source.color }
 }
 
 enum MonthlyChartMode: String, CaseIterable, Identifiable {
@@ -25,6 +43,8 @@ enum MonthlyChartMode: String, CaseIterable, Identifiable {
 @Observable
 final class ReportsViewModel {
     var chartMode: MonthlyChartMode = .actual
+    var shareURL: URL?
+    var exportAlertMessage: String?
 
     func series(for mode: MonthlyChartMode, expenses: [Expense], monthsBack: Int = 6, calendar: Calendar = .current, now: Date = Date()) -> [MonthlyTotal] {
         switch mode {
@@ -116,11 +136,85 @@ final class ReportsViewModel {
         categoryTotals(expenses, in: month, calendar: calendar).first
     }
 
+    func incomeSourceTotals(_ incomes: [Income], in month: Date = Date(), calendar: Calendar = .current) -> [IncomeSourceTotal] {
+        let monthIncomes = incomes.filter { calendar.isDate($0.date, equalTo: month, toGranularity: .month) }
+        let grouped = Dictionary(grouping: monthIncomes, by: \.source)
+        return grouped
+            .map { IncomeSourceTotal(source: $0.key, total: $0.value.reduce(into: Decimal.zero) { $0 += $1.amount }) }
+            .sorted { $0.total > $1.total }
+    }
+
     func monthlyAverage(_ expenses: [Expense], calendar: Calendar = .current) -> Decimal {
         ExpenseSummary.monthlyAverage(for: expenses, calendar: calendar)
     }
 
     func totalExpenses(_ expenses: [Expense]) -> Decimal {
         expenses.reduce(into: Decimal.zero) { $0 += $1.amount }
+    }
+
+    func totalExpenses(_ expenses: [Expense], in month: Date, calendar: Calendar = .current) -> Decimal {
+        expenses
+            .filter { calendar.isDate($0.date, equalTo: month, toGranularity: .month) }
+            .reduce(into: Decimal.zero) { $0 += $1.amount }
+    }
+
+    func totalIncome(_ incomes: [Income], in month: Date, calendar: Calendar = .current) -> Decimal {
+        incomes
+            .filter { calendar.isDate($0.date, equalTo: month, toGranularity: .month) }
+            .reduce(into: Decimal.zero) { $0 += $1.amount }
+    }
+
+    /// Income and expense side by side for the same trailing window used by
+    /// `series(for:expenses:...)`, so the two bars line up month for month.
+    func combinedMonthlySeries(mode: MonthlyChartMode, expenses: [Expense], incomes: [Income], monthsBack: Int = 6, calendar: Calendar = .current, now: Date = Date()) -> [MonthlySummary] {
+        let expenseSeries = series(for: mode, expenses: expenses, monthsBack: monthsBack, calendar: calendar, now: now)
+        return expenseSeries.map { entry in
+            let income = incomes
+                .filter { calendar.isDate($0.date, equalTo: entry.month, toGranularity: .month) }
+                .reduce(into: Decimal.zero) { $0 += $1.amount }
+            return MonthlySummary(month: entry.month, income: income, expense: entry.total)
+        }
+    }
+
+    func exportMonthlyCategoryReportCSV(
+        month: Date,
+        incomeTotal: Decimal,
+        expenseTotal: Decimal,
+        categoryTotals: [CategorySpending],
+        incomeSourceTotals: [IncomeSourceTotal]
+    ) {
+        guard let url = CSVExportService.exportMonthlyCategoryReport(
+            month: month,
+            incomeTotal: incomeTotal,
+            expenseTotal: expenseTotal,
+            categoryTotals: categoryTotals,
+            incomeSourceTotals: incomeSourceTotals
+        ) else {
+            exportAlertMessage = "Could not export CSV."
+            return
+        }
+        shareURL = url
+    }
+
+    func exportMonthlyCategoryReportPDF(
+        month: Date,
+        incomeTotal: Decimal,
+        expenseTotal: Decimal,
+        categoryTotals: [CategorySpending],
+        incomeSourceTotals: [IncomeSourceTotal],
+        currencyCode: String
+    ) {
+        guard let url = MonthlyReportPDFService.export(
+            month: month,
+            incomeTotal: incomeTotal,
+            expenseTotal: expenseTotal,
+            categoryTotals: categoryTotals,
+            incomeSourceTotals: incomeSourceTotals,
+            currencyCode: currencyCode
+        ) else {
+            exportAlertMessage = "Could not export PDF."
+            return
+        }
+        shareURL = url
     }
 }

@@ -18,6 +18,11 @@ struct AddIncomeView: View {
     @State private var paymentMethod: PaymentMethod = .bankTransfer
     @State private var notes: String = ""
 
+    /// nil means "Never" (not recurring).
+    @State private var recurrenceFrequency: RecurrenceFrequency?
+    @State private var recurrenceHasEndDate: Bool = false
+    @State private var recurrenceEndDate: Date = Date()
+
     init(editing income: Income? = nil) {
         self.editingIncome = income
         if let income {
@@ -28,6 +33,11 @@ struct AddIncomeView: View {
             _date = State(initialValue: income.date)
             _paymentMethod = State(initialValue: PaymentMethod(rawValue: income.paymentMethod) ?? .bankTransfer)
             _notes = State(initialValue: income.notes)
+            _recurrenceFrequency = State(initialValue: income.recurrenceFrequency)
+            if let endDate = income.recurrenceEndDate {
+                _recurrenceHasEndDate = State(initialValue: true)
+                _recurrenceEndDate = State(initialValue: endDate)
+            }
         }
     }
 
@@ -84,12 +94,37 @@ struct AddIncomeView: View {
                             .labelsHidden()
                         }
                         Divider().padding(.leading, 52)
+                        detailRow(icon: "repeat", tint: .cyan) {
+                            Picker("Repeat", selection: $recurrenceFrequency) {
+                                Text("Never").tag(Optional<RecurrenceFrequency>.none)
+                                ForEach(RecurrenceFrequency.allCases) { frequency in
+                                    Text(frequency.rawValue).tag(Optional(frequency))
+                                }
+                            }
+                            .labelsHidden()
+                        }
+                        if recurrenceFrequency != nil {
+                            Divider().padding(.leading, 52)
+                            detailRow(icon: "calendar.badge.exclamationmark", tint: .pink) {
+                                Toggle("End Date", isOn: $recurrenceHasEndDate)
+                            }
+                            if recurrenceHasEndDate {
+                                Divider().padding(.leading, 52)
+                                detailRow(icon: "calendar", tint: .pink) {
+                                    DatePicker("Ends", selection: $recurrenceEndDate, displayedComponents: .date)
+                                        .labelsHidden()
+                                }
+                            }
+                        }
+                        Divider().padding(.leading, 52)
                         detailRow(icon: "note.text", tint: .gray) {
                             TextField("Notes", text: $notes, axis: .vertical)
                                 .lineLimit(1...4)
                         }
                     }
                     .cardStyle(padding: 0)
+                    .animation(.spring(duration: 0.25), value: recurrenceFrequency)
+                    .animation(.spring(duration: 0.25), value: recurrenceHasEndDate)
                 }
                 .padding()
             }
@@ -171,7 +206,9 @@ struct AddIncomeView: View {
     private func save() {
         guard let amount = parsedAmount else { return }
 
-        if let income = editingIncome {
+        let income: Income
+        if let editingIncome {
+            income = editingIncome
             income.amount = amount
             income.sourceName = sourceName
             income.payer = payer
@@ -180,7 +217,7 @@ struct AddIncomeView: View {
             income.notes = notes
             income.updatedAt = Date()
         } else {
-            let newIncome = Income(
+            income = Income(
                 amount: amount,
                 sourceName: sourceName,
                 payer: payer,
@@ -188,7 +225,18 @@ struct AddIncomeView: View {
                 notes: notes,
                 paymentMethod: paymentMethod.rawValue
             )
-            modelContext.insert(newIncome)
+            modelContext.insert(income)
+        }
+
+        if let recurrenceFrequency {
+            if income.seriesID == nil {
+                income.seriesID = income.id
+            }
+            income.recurrenceFrequency = recurrenceFrequency
+            income.recurrenceEndDate = recurrenceHasEndDate ? recurrenceEndDate : nil
+        } else {
+            income.recurrenceFrequency = nil
+            income.recurrenceEndDate = nil
         }
 
         do {

@@ -9,13 +9,15 @@ import SwiftUI
 
 struct ReportsView: View {
     @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
+    @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
     @State private var viewModel = ReportsViewModel()
     // Collapsed by default: the total is what matters at a glance, and the rows
     // otherwise push the charts below the fold.
     @State private var commitmentsExpanded = false
+    @State private var selectedReportMonth = Date()
 
-    private var monthlySeries: [MonthlyTotal] {
-        viewModel.series(for: viewModel.chartMode, expenses: expenses)
+    private var monthlySummary: [MonthlySummary] {
+        viewModel.combinedMonthlySeries(mode: viewModel.chartMode, expenses: expenses, incomes: incomes)
     }
 
     private var commitments: [RecurringCommitment] {
@@ -23,17 +25,28 @@ struct ReportsView: View {
     }
 
     private var categoryTotals: [CategorySpending] {
-        viewModel.categoryTotals(expenses)
+        viewModel.categoryTotals(expenses, in: selectedReportMonth)
+    }
+
+    private var incomeSourceTotals: [IncomeSourceTotal] {
+        viewModel.incomeSourceTotals(incomes, in: selectedReportMonth)
     }
 
     private var dailyTrend: [DailyTotal] {
-        viewModel.dailyTrend(expenses)
+        viewModel.dailyTrend(expenses, for: selectedReportMonth)
+    }
+
+    /// Trailing 12 months including the current one, newest first, for the month picker.
+    private var recentMonths: [Date] {
+        let calendar = Calendar.current
+        guard let currentMonthStart = calendar.dateInterval(of: .month, for: Date())?.start else { return [Date()] }
+        return (0..<12).compactMap { calendar.date(byAdding: .month, value: -$0, to: currentMonthStart) }
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if expenses.isEmpty {
+                if expenses.isEmpty && incomes.isEmpty {
                     VStack {
                         Spacer()
                         EmptyState(message: "Add some expenses to see your reports.", systemImage: "chart.pie")
@@ -50,6 +63,7 @@ struct ReportsView: View {
 
                             monthlyChartCard
                             categoryChartCard
+                            incomeSourceChartCard
                             dailyTrendCard
                         }
                         .padding()
@@ -59,7 +73,53 @@ struct ReportsView: View {
             .background(Theme.background)
             .navigationTitle("Reports")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    monthMenu
+                }
+            }
+            .sheet(item: Binding(
+                get: { viewModel.shareURL.map(ShareItem.init) },
+                set: { viewModel.shareURL = $0?.url }
+            )) { item in
+                ShareSheet(items: [item.url])
+            }
+            .alert(
+                "Export Failed",
+                isPresented: Binding(
+                    get: { viewModel.exportAlertMessage != nil },
+                    set: { if !$0 { viewModel.exportAlertMessage = nil } }
+                ),
+                presenting: viewModel.exportAlertMessage
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { message in
+                Text(message)
+            }
         }
+    }
+
+    private var monthMenu: some View {
+        Menu {
+            ForEach(recentMonths, id: \.self) { month in
+                Button {
+                    selectedReportMonth = month
+                } label: {
+                    if Calendar.current.isDate(month, equalTo: selectedReportMonth, toGranularity: .month) {
+                        Label(month.formatted(.dateTime.month(.wide).year()), systemImage: "checkmark")
+                    } else {
+                        Text(month.formatted(.dateTime.month(.wide).year()))
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(selectedReportMonth.formatted(.dateTime.month(.abbreviated).year()))
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+            }
+        }
+        .accessibilityLabel("Selected month: \(selectedReportMonth.formatted(.dateTime.month(.wide).year()))")
     }
 
     private var summaryRow: some View {
@@ -78,9 +138,9 @@ struct ReportsView: View {
                     tint: .purple
                 )
             }
-            if let highest = viewModel.highestCategory(expenses) {
+            if let highest = viewModel.highestCategory(expenses, in: selectedReportMonth) {
                 StatisticCard(
-                    title: "Top Category This Month",
+                    title: "Top Category",
                     value: "\(highest.name) · \(CurrencyFormatter.string(from: highest.total))",
                     systemImage: highest.symbolName,
                     tint: highest.color
@@ -172,8 +232,43 @@ struct ReportsView: View {
 
     private var monthlyChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Monthly Spending")
-                .font(.headline)
+            HStack(spacing: 8) {
+                Text("Monthly Spending")
+                    .font(.headline)
+
+                Spacer(minLength: 8)
+
+                Menu {
+                    Button {
+                        viewModel.exportMonthlyCategoryReportCSV(
+                            month: selectedReportMonth,
+                            incomeTotal: viewModel.totalIncome(incomes, in: selectedReportMonth),
+                            expenseTotal: viewModel.totalExpenses(expenses, in: selectedReportMonth),
+                            categoryTotals: categoryTotals,
+                            incomeSourceTotals: incomeSourceTotals
+                        )
+                    } label: {
+                        Label("Export as CSV", systemImage: "doc.text")
+                    }
+                    Button {
+                        viewModel.exportMonthlyCategoryReportPDF(
+                            month: selectedReportMonth,
+                            incomeTotal: viewModel.totalIncome(incomes, in: selectedReportMonth),
+                            expenseTotal: viewModel.totalExpenses(expenses, in: selectedReportMonth),
+                            categoryTotals: categoryTotals,
+                            incomeSourceTotals: incomeSourceTotals,
+                            currencyCode: CurrencyFormatter.preferredCurrencyCode
+                        )
+                    } label: {
+                        Label("Export as PDF", systemImage: "doc.richtext")
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Export report for \(selectedReportMonth.formatted(.dateTime.month(.wide).year()))")
+            }
 
             Picker("Chart mode", selection: $viewModel.chartMode) {
                 ForEach(MonthlyChartMode.allCases) { mode in
@@ -182,21 +277,43 @@ struct ReportsView: View {
             }
             .pickerStyle(.segmented)
 
-            Chart(monthlySeries) { entry in
+            Chart(monthlySummary) { summary in
                 BarMark(
-                    x: .value("Month", entry.month, unit: .month),
-                    y: .value("Total", NSDecimalNumber(decimal: entry.total).doubleValue)
+                    x: .value("Month", summary.month, unit: .month),
+                    y: .value("Amount", NSDecimalNumber(decimal: summary.income).doubleValue)
                 )
-                .foregroundStyle(Color.accentColor.gradient)
-                .cornerRadius(6)
+                .foregroundStyle(by: .value("Type", "Income"))
+                .position(by: .value("Type", "Income"))
+                .annotation(position: .top) {
+                    if summary.income > 0 {
+                        Text(CurrencyFormatter.compactString(from: summary.income))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                BarMark(
+                    x: .value("Month", summary.month, unit: .month),
+                    y: .value("Amount", NSDecimalNumber(decimal: summary.expense).doubleValue)
+                )
+                .foregroundStyle(by: .value("Type", "Expenses"))
+                .position(by: .value("Type", "Expenses"))
+                .annotation(position: .top) {
+                    if summary.expense > 0 {
+                        Text(CurrencyFormatter.compactString(from: summary.expense))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
-            .frame(height: 180)
+            .chartForegroundStyleScale(["Income": Theme.success, "Expenses": Theme.danger])
+            .frame(height: 200)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month)) { value in
                     AxisValueLabel(format: .dateTime.month(.abbreviated))
                 }
             }
-            .accessibilityLabel("Monthly spending chart for the last six months")
+            .accessibilityLabel("Monthly income and spending chart for the last six months")
 
             Text(viewModel.chartMode == .actual
                  ? "What you actually paid each month."
@@ -253,6 +370,51 @@ struct ReportsView: View {
         .cardStyle()
     }
 
+    private var incomeSourceChartCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Income by Category")
+                .font(.headline)
+
+            if incomeSourceTotals.isEmpty {
+                Text("No income this month yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 24)
+            } else {
+                Chart(incomeSourceTotals) { entry in
+                    SectorMark(
+                        angle: .value("Total", NSDecimalNumber(decimal: entry.total).doubleValue),
+                        innerRadius: .ratio(0.6),
+                        angularInset: 1.5
+                    )
+                    .cornerRadius(4)
+                    .foregroundStyle(entry.color)
+                }
+                .frame(height: 200)
+                .accessibilityLabel("Income breakdown pie chart for the current month")
+
+                VStack(spacing: 8) {
+                    ForEach(incomeSourceTotals.prefix(6)) { entry in
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(entry.color)
+                                .frame(width: 8, height: 8)
+                            Text(entry.name)
+                                .font(.caption)
+                            Spacer()
+                            Text(CurrencyFormatter.string(from: entry.total))
+                                .font(.caption.weight(.medium))
+                                .monospacedDigit()
+                        }
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
+        .cardStyle()
+    }
+
     private var dailyTrendCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Daily Spending Trend")
@@ -283,6 +445,11 @@ struct ReportsView: View {
         }
         .cardStyle()
     }
+}
+
+private struct ShareItem: Identifiable {
+    let url: URL
+    var id: URL { url }
 }
 
 #Preview {
