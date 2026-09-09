@@ -36,14 +36,12 @@ struct SplashView: View {
 
         GeometryReader { geo in
 
+            // The artwork is sized as a fraction of the screen, so on an iPad it
+            // would blow up to fill a 1000pt-wide canvas. Cap the stage it is
+            // measured against at phone width and let it sit centred instead.
+            let stage = min(geo.size.width, Layout.artworkStage)
+
             ZStack {
-
-                // Background
-
-                Image("LaunchGradient")
-                    .resizable()
-                    .scaledToFill()
-                    .ignoresSafeArea()
 
                 VStack {
 
@@ -56,7 +54,7 @@ struct SplashView: View {
                         Image("WalletBody")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: geo.size.width * 0.62)
+                            .frame(width: stage * 0.62)
                             .offset(x: -10, y: 0)
                             .scaleEffect(walletScale)
                             .opacity(walletOpacity)
@@ -71,7 +69,7 @@ struct SplashView: View {
                         Image("Money")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: geo.size.width * 0.9)
+                            .frame(width: stage * 0.9)
                             .rotationEffect(.degrees(moneyBackRotation))
                             .offset(x: 38, y: moneyBackOffset)
                             .opacity(moneyBackOpacity)
@@ -81,7 +79,7 @@ struct SplashView: View {
                         Image("Money")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: geo.size.width * 0.9)
+                            .frame(width: stage * 0.9)
                             .rotationEffect(.degrees(moneyFrontRotation))
                             .offset(x: 32, y: -80)
                             .opacity(moneyFrontOpacity)
@@ -91,7 +89,7 @@ struct SplashView: View {
                         Image("Coin")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: geo.size.width * 1)
+                            .frame(width: stage * 1)
                             .offset(x: 90, y: coinOffset)
                             .scaleEffect(coinScale)
                             .rotationEffect(.degrees(coinRotation))
@@ -103,7 +101,7 @@ struct SplashView: View {
                         Image("Receipt")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: geo.size.width * 0.8)
+                            .frame(width: stage * 0.8)
                             .scaleEffect(receiptScale)
                             .rotationEffect(.degrees(receiptRotation))
                             .offset(x: -35, y: -95)
@@ -114,7 +112,7 @@ struct SplashView: View {
                         Image("WalletFlap")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: geo.size.width * 0.62)
+                            .frame(width: stage * 0.62)
                             .offset(x: -10, y: 0)
 
                     }
@@ -148,8 +146,23 @@ struct SplashView: View {
                 }
 
             }
+            // The stack no longer has the (previously full-bleed) gradient as a
+            // child to size it, so say outright that it fills the screen.
+            .frame(width: geo.size.width, height: geo.size.height)
+            // The gradient is scaledToFill, so it overflows whatever it is given
+            // — as a ZStack child that made the stack taller than the screen and
+            // pushed the artwork below centre, badly so on an iPad, where the
+            // display is far wider relative to its height than the image is.
+            // As a clipped background it paints the same but sizes nothing.
+            .background {
+                Image("LaunchGradient")
+                    .resizable()
+                    .scaledToFill()
+                    .clipped()
+            }
 
         }
+        .ignoresSafeArea()
         // Matches LaunchScreen.storyboard's label — same string, 12pt system, white
         // at 75%, centred 24pt above the safe area — so the credit does not shift or
         // restyle as the static launch screen hands over to this one.

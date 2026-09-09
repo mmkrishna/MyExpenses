@@ -221,6 +221,10 @@ struct SettingsView: View {
                 deleteAccountSection
                 aboutSection
             }
+            .scrollContentBackground(.hidden)
+            .tabBarClearance()
+            .contentColumn()
+            .background(Theme.background)
             .confirmationDialog(
                 "Delete your account?",
                 isPresented: $showingDeleteAccount,

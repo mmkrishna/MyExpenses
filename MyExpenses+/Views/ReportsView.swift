@@ -67,9 +67,11 @@ struct ReportsView: View {
                             dailyTrendCard
                         }
                         .padding()
+                        .contentColumn()
                     }
                 }
             }
+            .tabBarClearance()
             .background(Theme.background)
             .navigationTitle("Reports")
             .navigationBarTitleDisplayMode(.large)
@@ -125,28 +127,43 @@ struct ReportsView: View {
     private var summaryRow: some View {
         VStack(spacing: 14) {
             HStack(spacing: 14) {
-                StatisticCard(
-                    title: "Total Spent",
-                    value: CurrencyFormatter.string(from: viewModel.totalExpenses(expenses)),
-                    systemImage: "sum",
-                    tint: .blue
-                )
-                StatisticCard(
-                    title: "Monthly Avg",
-                    value: CurrencyFormatter.string(from: viewModel.monthlyAverage(expenses)),
-                    systemImage: "chart.bar.fill",
-                    tint: .purple
-                )
+                totalSpentCard
+                monthlyAverageCard
             }
-            if let highest = viewModel.highestCategory(expenses, in: selectedReportMonth) {
-                StatisticCard(
-                    title: "Top Category",
-                    value: "\(highest.name) · \(CurrencyFormatter.string(from: highest.total))",
-                    systemImage: highest.symbolName,
-                    tint: highest.color
-                )
+            if let topCategoryCard {
+                topCategoryCard
             }
         }
+    }
+
+    private var totalSpentCard: StatisticCard {
+        StatisticCard(
+            title: "Total Spent",
+            value: CurrencyFormatter.string(from: viewModel.totalExpenses(expenses)),
+            systemImage: "sum",
+            tint: .blue
+        )
+    }
+
+    private var monthlyAverageCard: StatisticCard {
+        StatisticCard(
+            title: "Monthly Avg",
+            value: CurrencyFormatter.string(from: viewModel.monthlyAverage(expenses)),
+            systemImage: "chart.bar.fill",
+            tint: .purple
+        )
+    }
+
+    private var topCategoryCard: StatisticCard? {
+        guard let highest = viewModel.highestCategory(expenses, in: selectedReportMonth) else {
+            return nil
+        }
+        return StatisticCard(
+            title: "Top Category",
+            value: "\(highest.name) · \(CurrencyFormatter.string(from: highest.total))",
+            systemImage: highest.symbolName,
+            tint: highest.color
+        )
     }
 
     private var commitmentsCard: some View {
@@ -264,8 +281,17 @@ struct ReportsView: View {
                     }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.secondary)
+                        // The glyph on its own was about 15pt square — far under
+                        // the 44pt minimum, and exactly the kind of control the
+                        // App Store review called out. The frame gives it a full
+                        // target; the negative padding lets that target reach
+                        // into the card's own padding so the icon stays where it
+                        // sat optically instead of jumping inwards.
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                        .padding(.trailing, -12)
                 }
                 .accessibilityLabel("Export report for \(selectedReportMonth.formatted(.dateTime.month(.wide).year()))")
             }

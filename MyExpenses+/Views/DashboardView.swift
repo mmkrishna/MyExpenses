@@ -114,8 +114,10 @@ struct DashboardView: View {
                     .cardStyle()
                 }
                 .padding()
+                .contentColumn()
                 .animation(.spring(duration: 0.4), value: recentExpenses)
             }
+            .tabBarClearance()
             .background(Theme.background)
             // No nav title: the greeting header serves as the screen's heading.
             .toolbar(.hidden, for: .navigationBar)

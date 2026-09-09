@@ -78,6 +78,9 @@ struct ExpensesView: View {
                     addButton
                 }
             }
+            .tabBarClearance()
+            .contentColumn()
+            .background(Theme.background)
             .navigationTitle("Expenses")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $viewModel.searchText, prompt: "Search merchant, notes, category")

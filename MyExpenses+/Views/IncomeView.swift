@@ -103,6 +103,8 @@ struct IncomeView: View {
                     floatingAddButton
                 }
             }
+            .tabBarClearance()
+            .contentColumn()
             .background(Theme.background)
             .navigationTitle("Income")
             .navigationBarTitleDisplayMode(.large)
