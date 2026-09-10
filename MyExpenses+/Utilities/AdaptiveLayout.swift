@@ -24,7 +24,14 @@ enum Layout {
 /// an iPad is held further away and has room to spare, so the targets and
 /// labels step up rather than staying at phone size on a much bigger screen.
 struct TabBarMetrics {
+    /// True only where there is room in *both* directions. Width alone is not
+    /// enough: a Pro Max in landscape reports regular width on a 440pt-tall
+    /// screen, and an 86pt bar there would eat the display.
     let isRegular: Bool
+
+    init(horizontal: UserInterfaceSizeClass?, vertical: UserInterfaceSizeClass?) {
+        isRegular = horizontal == .regular && vertical == .regular
+    }
 
     /// Height the bar occupies above the safe area. Fixed rather than measured,
     /// because screens have to reserve exactly this much room.
@@ -39,11 +46,15 @@ struct TabBarMetrics {
 
 private struct TabBarClearanceModifier: ViewModifier {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     func body(content: Content) -> some View {
+        // Must resolve to the same metrics the bar itself uses, or the room
+        // reserved here and the room the bar takes drift apart.
+        let metrics = TabBarMetrics(horizontal: horizontalSizeClass,
+                                    vertical: verticalSizeClass)
         content.safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear
-                .frame(height: TabBarMetrics(isRegular: horizontalSizeClass == .regular).height)
+            Color.clear.frame(height: metrics.height)
         }
     }
 }
@@ -66,13 +77,9 @@ private struct ContentColumnModifier: ViewModifier {
     let maxWidth: CGFloat
 
     func body(content: Content) -> some View {
-        if horizontalSizeClass == .regular {
-            content
-                .frame(maxWidth: maxWidth)
-                .frame(maxWidth: .infinity)
-        } else {
-            content
-        }
+        content
+            .frame(maxWidth: horizontalSizeClass == .regular ? maxWidth : .infinity)
+            .frame(maxWidth: .infinity)
     }
 }
 

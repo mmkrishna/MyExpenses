@@ -16,12 +16,14 @@ struct BottomTabBar: View {
     var bottomSafeArea: CGFloat = 0
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Ties the highlight to whichever item is selected, so it travels between
     /// them instead of fading out in one place and in at another.
     @Namespace private var highlight
 
     private var metrics: TabBarMetrics {
-        TabBarMetrics(isRegular: horizontalSizeClass == .regular)
+        TabBarMetrics(horizontal: horizontalSizeClass, vertical: verticalSizeClass)
     }
 
     var body: some View {
@@ -68,11 +70,16 @@ struct BottomTabBar: View {
                     tab: tab,
                     isSelected: tab == selection,
                     metrics: metrics,
-                    highlight: highlight
+                    highlight: highlight,
+                    reduceMotion: reduceMotion
                 ) {
                     if tab != selection {
                         Haptics.selection()
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                        // Sliding the highlight across the bar is exactly the
+                        // kind of movement Reduce Motion asks apps to drop.
+                        withAnimation(reduceMotion
+                                      ? nil
+                                      : .spring(response: 0.35, dampingFraction: 0.78)) {
                             selection = tab
                         }
                     }
@@ -96,6 +103,8 @@ struct BottomTabBar: View {
         )
         .padding(.horizontal, Theme.Spacing.md)
         .padding(.bottom, metrics.bottomInset)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Tabs")
         // Lines up with the content column, so on an iPad the bar sits under
         // the screen above it rather than running the full width of the display.
         .contentColumn()
@@ -107,7 +116,15 @@ private struct TabBarItem: View {
     let isSelected: Bool
     let metrics: TabBarMetrics
     let highlight: Namespace.ID
+    let reduceMotion: Bool
     let action: () -> Void
+
+    /// Cmd-1 through Cmd-5, the shortcuts a TabView would have given us. Worth
+    /// keeping now the app ships for iPad, where a keyboard is common.
+    private var shortcut: KeyboardShortcut? {
+        guard let index = AppTab.allCases.firstIndex(of: tab), index < 9 else { return nil }
+        return KeyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+    }
 
     /// Bumped on every tap so the symbol bounces for the item that was actually
     /// pressed — including a re-tap of the current tab — and not for the one
@@ -116,7 +133,7 @@ private struct TabBarItem: View {
 
     var body: some View {
         Button {
-            bounce += 1
+            if !reduceMotion { bounce += 1 }
             action()
         } label: {
             VStack(spacing: 3) {
@@ -148,6 +165,7 @@ private struct TabBarItem: View {
         // Labels are already tight; let them scale but not to the point of
         // wrapping the bar into something unusable.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
+        .keyboardShortcut(shortcut)
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
