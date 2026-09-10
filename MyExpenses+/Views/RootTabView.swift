@@ -32,11 +32,66 @@ enum AppTab: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Re-selecting the current tab
+//
+// Tapping the tab you are already on returns that screen to the top. The system
+// tab bar does this and people reach for it, so drawing our own bar means
+// wiring it up ourselves.
+//
+// (It also pops the navigation stack to its root. None of these five screens
+// pushes anything — they present sheets — so there is nothing to pop today. If
+// one grows a NavigationLink, its path reset belongs in the same callback.)
+
+/// Bumped each time the selected tab's item is tapped again. Carries the tab so
+/// only that screen reacts and the others keep where the reader left them.
+struct TabReselection: Equatable {
+    var tab: AppTab?
+    var count = 0
+}
+
+private struct TabReselectionKey: EnvironmentKey {
+    static let defaultValue = TabReselection()
+}
+
+extension EnvironmentValues {
+    var tabReselection: TabReselection {
+        get { self[TabReselectionKey.self] }
+        set { self[TabReselectionKey.self] = newValue }
+    }
+}
+
+private struct TabReselectModifier: ViewModifier {
+    let tab: AppTab
+    let action: () -> Void
+    @Environment(\.tabReselection) private var reselection
+
+    func body(content: Content) -> some View {
+        content.onChange(of: reselection) { _, value in
+            guard value.tab == tab else { return }
+            action()
+        }
+    }
+}
+
+extension View {
+    /// Runs `action` when this tab's item is tapped while it is already selected.
+    func onTabReselect(_ tab: AppTab, perform action: @escaping () -> Void) -> some View {
+        modifier(TabReselectModifier(tab: tab, action: action))
+    }
+}
+
+/// Identifies the topmost element of a screen, so re-selection has something to
+/// scroll back to.
+enum ScrollAnchor: Hashable {
+    case top
+}
+
 struct RootTabView: View {
     @State private var selection: AppTab = .dashboard
     /// Screens are built on first visit and then kept, the way a TabView does
     /// it, so switching back to a tab returns it as it was left.
     @State private var visited: Set<AppTab> = [.dashboard]
+    @State private var reselection = TabReselection()
 
     var body: some View {
         // Not a TabView. iPadOS 18 and later draw a TabView's bar across the
@@ -64,11 +119,15 @@ struct RootTabView: View {
                     }
                 }
             }
+            .environment(\.tabReselection, reselection)
             .overlay(alignment: .bottom) {
                 BottomTabBar(
                     selection: $selection,
                     bottomSafeArea: proxy.safeAreaInsets.bottom
-                )
+                ) {
+                    reselection = TabReselection(tab: selection,
+                                                 count: reselection.count + 1)
+                }
             }
             .onChange(of: selection) { _, tab in
                 visited.insert(tab)

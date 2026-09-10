@@ -14,6 +14,8 @@ struct BottomTabBar: View {
     /// of an overlay — the blur has to reach the very bottom of the display or
     /// content shows through sharp in the home indicator strip.
     var bottomSafeArea: CGFloat = 0
+    /// Called when the item for the tab already showing is tapped again.
+    var onReselect: () -> Void = {}
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -73,15 +75,17 @@ struct BottomTabBar: View {
                     highlight: highlight,
                     reduceMotion: reduceMotion
                 ) {
-                    if tab != selection {
-                        Haptics.selection()
-                        // Sliding the highlight across the bar is exactly the
-                        // kind of movement Reduce Motion asks apps to drop.
-                        withAnimation(reduceMotion
-                                      ? nil
-                                      : .spring(response: 0.35, dampingFraction: 0.78)) {
-                            selection = tab
-                        }
+                    guard tab != selection else {
+                        onReselect()
+                        return
+                    }
+                    Haptics.selection()
+                    // Sliding the highlight across the bar is exactly the kind
+                    // of movement Reduce Motion asks apps to drop.
+                    withAnimation(reduceMotion
+                                  ? nil
+                                  : .spring(response: 0.35, dampingFraction: 0.78)) {
+                        selection = tab
                     }
                 }
             }
@@ -165,6 +169,13 @@ private struct TabBarItem: View {
         // Labels are already tight; let them scale but not to the point of
         // wrapping the bar into something unusable.
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
+        // The bar caps its own Dynamic Type, because five items cannot grow
+        // without breaking the row. That is exactly the case the large content
+        // viewer exists for: at accessibility sizes, a long press puts the item
+        // up as a full-screen HUD instead.
+        .accessibilityShowsLargeContentViewer {
+            Label(tab.title, systemImage: tab.systemImage)
+        }
         .keyboardShortcut(shortcut)
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)

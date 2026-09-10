@@ -43,6 +43,7 @@ struct IncomeView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroll in
             ZStack(alignment: .bottomTrailing) {
                 VStack(spacing: 0) {
                     summaryHeroCard
@@ -106,6 +107,10 @@ struct IncomeView: View {
             .tabBarClearance()
             .contentColumn()
             .background(Theme.background)
+            .onTabReselect(.income) {
+                guard let first = visibleIncomes.first else { return }
+                withAnimation { scroll.scrollTo(first.id, anchor: .top) }
+            }
             .navigationTitle("Income")
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search payer, source, notes")
@@ -158,6 +163,7 @@ struct IncomeView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
+            }
             }
         }
     }

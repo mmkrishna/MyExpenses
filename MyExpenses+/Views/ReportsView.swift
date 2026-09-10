@@ -53,9 +53,11 @@ struct ReportsView: View {
                         Spacer()
                     }
                 } else {
+                    ScrollViewReader { scroll in
                     ScrollView {
                         VStack(spacing: 20) {
                             summaryRow
+                                .id(ScrollAnchor.top)
 
                             if !commitments.isEmpty {
                                 commitmentsCard
@@ -68,6 +70,10 @@ struct ReportsView: View {
                         }
                         .padding()
                         .contentColumn()
+                    }
+                    .onTabReselect(.reports) {
+                        withAnimation { scroll.scrollTo(ScrollAnchor.top, anchor: .top) }
+                    }
                     }
                 }
             }
