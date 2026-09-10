@@ -48,9 +48,11 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroll in
             ScrollView {
                 VStack(spacing: 20) {
                     profileHeader
+                        .id(ScrollAnchor.top)
 
                     monthSpendingHero
 
@@ -114,9 +116,14 @@ struct DashboardView: View {
                     .cardStyle()
                 }
                 .padding()
+                .contentColumn()
                 .animation(.spring(duration: 0.4), value: recentExpenses)
             }
+            .tabBarClearance()
             .background(Theme.background)
+            .onTabReselect(.dashboard) {
+                withAnimation { scroll.scrollTo(ScrollAnchor.top, anchor: .top) }
+            }
             // No nav title: the greeting header serves as the screen's heading.
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $viewModel.showingAddExpense) {
@@ -124,6 +131,7 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showingEditProfile) {
                 EditProfileView()
+            }
             }
         }
     }

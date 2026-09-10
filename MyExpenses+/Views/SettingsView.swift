@@ -121,6 +121,7 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroll in
             Form {
                 Section {
                     Button {
@@ -146,6 +147,7 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Edit Profile")
                 }
+                .id(ScrollAnchor.top)
 
                 Section("Currency & Budget") {
                     Picker("Currency", selection: $viewModel.currencyCode) {
@@ -221,6 +223,13 @@ struct SettingsView: View {
                 deleteAccountSection
                 aboutSection
             }
+            .scrollContentBackground(.hidden)
+            .onTabReselect(.settings) {
+                withAnimation { scroll.scrollTo(ScrollAnchor.top, anchor: .top) }
+            }
+            .tabBarClearance()
+            .contentColumn()
+            .background(Theme.background)
             .confirmationDialog(
                 "Delete your account?",
                 isPresented: $showingDeleteAccount,
@@ -290,6 +299,7 @@ struct SettingsView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(tipStore.errorMessage ?? "")
+            }
             }
         }
     }

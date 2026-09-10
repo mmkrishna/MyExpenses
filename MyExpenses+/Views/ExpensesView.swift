@@ -18,6 +18,7 @@ struct ExpensesView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroll in
             ZStack(alignment: .bottomTrailing) {
                 Group {
                     if expenses.isEmpty {
@@ -77,6 +78,13 @@ struct ExpensesView: View {
                 if !expenses.isEmpty && !viewModel.isSelecting {
                     addButton
                 }
+            }
+            .tabBarClearance()
+            .contentColumn()
+            .background(Theme.background)
+            .onTabReselect(.expenses) {
+                guard let first = visibleExpenses.first else { return }
+                withAnimation { scroll.scrollTo(first.id, anchor: .top) }
             }
             .navigationTitle("Expenses")
             .navigationBarTitleDisplayMode(.large)
@@ -155,6 +163,7 @@ struct ExpensesView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "")
+            }
             }
         }
     }
